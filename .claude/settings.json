@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(grep -r \"graph\\\\|Graph\\\\|managedIdentity\\\\|ManagedIdentity\" /home/scoutman/github/azrunbooks-workbench/src/*.ts)",
+      "Bash(grep -n \"constructor\\(\" /home/scoutman/github/azrunbooks-workbench/src/*.ts)",
+      "Bash(grep -n \"getToken\\\\|getAccessToken\" /home/scoutman/github/azrunbooks-workbench/src/*.ts)",
+      "Bash(node --test --test-name-pattern \"renders PowerShell mock\")"
+    ]
+  }
+}

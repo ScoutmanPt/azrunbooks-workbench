@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Python logo: two interlocked serpents -->
+  <!-- Upper serpent body (dark blue, curves right then down) -->
+  <path d="M4,4 L8.5,4 Q12,4 12,7.5 Q12,9 10.5,9 L7,9 Q5,9 5,11.5"
+        fill="none" stroke="#1A6FCC" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Upper serpent head -->
+  <circle cx="4" cy="4" r="1.9" fill="#1A6FCC"/>
+  <!-- Lower serpent body (light blue, curves left then up) -->
+  <path d="M12,12 L7.5,12 Q4,12 4,8.5 Q4,7 5.5,7 L9,7 Q11,7 11,4.5"
+        fill="none" stroke="#5AADFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Lower serpent head -->
+  <circle cx="12" cy="12" r="1.9" fill="#5AADFF"/>
+  <!-- White eyes -->
+  <circle cx="4.6" cy="3.4" r="0.6" fill="#FFFFFF"/>
+  <circle cx="12.6" cy="11.4" r="0.6" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1F33"/>
+      <stop offset="1" stop-color="#12517F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <circle cx="1040" cy="20" r="120" fill="#38BDF8" fill-opacity=".12"/>
+  <circle cx="110" cy="150" r="110" fill="#2DD4BF" fill-opacity=".10"/>
+  <path d="M40 118H420" stroke="#2DD4BF" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#9FDFFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">AZURE RUNBOOK WORKBENCH</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Overview</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">What the extension does, why it exists, and where it fits.</text>
+</svg>

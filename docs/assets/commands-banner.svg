@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A1A2A"/>
+      <stop offset="1" stop-color="#134A74"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <rect x="868" y="34" width="272" height="90" rx="16" fill="#081A2C" stroke="#9AD9FF" stroke-opacity=".2"/>
+  <text x="892" y="68" fill="#EAF6FF" font-family="Consolas, 'Courier New', monospace" font-size="16">runbookWorkbench.fetchRunbook</text>
+  <text x="892" y="92" fill="#9FDFFF" font-family="Consolas, 'Courier New', monospace" font-size="16">runbookWorkbench.publishRunbook</text>
+  <text x="892" y="116" fill="#9EF3C8" font-family="Consolas, 'Courier New', monospace" font-size="16">runbookWorkbench.debugLocal</text>
+  <path d="M40 118H400" stroke="#A78BFA" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#CDBAFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">COMMAND SURFACE</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Commands</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">Every command, where it appears, and what it changes.</text>
+</svg>

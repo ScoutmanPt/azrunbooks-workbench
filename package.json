@@ -1,0 +1,746 @@
+{
+  "name": "azure-runbook-workbench",
+  "displayName": "Azure Runbook Workbench",
+  "description": "A modern Azure Automation Runbook developer experience - workspace-first, MSAL auth, local execution with asset mocking, and CI/CD generation.",
+  "version": "0.6.0",
+  "publisher": "ScoutmanPt",
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Azure",
+    "Other"
+  ],
+  "keywords": [
+    "azure",
+    "automation",
+    "runbook",
+    "powershell",
+    "devops"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "submenus": [
+      {
+        "id": "runbookWorkbench.explorerWorkspaceMenu",
+        "label": "Azure Runbook Workbench"
+      },
+      {
+        "id": "runbookWorkbench.explorerAccountMenu",
+        "label": "Azure Runbook Workbench"
+      },
+      {
+        "id": "runbookWorkbench.explorerRunbookMenu",
+        "label": "Azure Runbook Workbench"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "runbookWorkbench",
+          "title": "Azure Runbook Workbench",
+          "icon": "resources/automation.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "runbookWorkbenchPanel",
+          "title": "Runbook Sessions",
+          "icon": "resources/automation.svg"
+        }
+      ]
+    },
+    "views": {
+      "runbookWorkbench": [
+        {
+          "id": "runbookWorkbench.accounts",
+          "name": "Automation Accounts"
+        },
+        {
+          "id": "runbookWorkbench.workspace",
+          "name": "Workspace",
+          "when": "false"
+        }
+      ],
+      "runbookWorkbenchPanel": [
+        {
+          "id": "runbookWorkbench.localRuns",
+          "name": "Runbook Sessions",
+          "type": "webview",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "runbookWorkbench.signIn",
+        "title": "Sign in to Azure",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.signOut",
+        "title": "Sign out of Azure",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.selectCloud",
+        "title": "Select Azure Cloud",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.refresh",
+        "title": "Refresh",
+        "category": "Runbook Workbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "runbookWorkbench.initWorkspace",
+        "title": "Initialize Runbook Workspace",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.fetchRunbook",
+        "title": "Fetch Runbook(s) (Published)",
+        "category": "Runbook Workbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "runbookWorkbench.fetchDraftRunbook",
+        "title": "Fetch Runbook(s) (Draft)",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.publishRunbook",
+        "title": "Publish Runbook(s)",
+        "category": "Runbook Workbench",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "runbookWorkbench.uploadAsDraft",
+        "title": "Upload as Draft(s)",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.diffRunbook",
+        "title": "Compare Local vs Deployed",
+        "category": "Runbook Workbench",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "runbookWorkbench.startJob",
+        "title": "Start Automation Job",
+        "category": "Runbook Workbench",
+        "icon": "$(play)"
+      },
+      {
+        "command": "runbookWorkbench.startTestJob",
+        "title": "Start Test Job",
+        "category": "Runbook Workbench",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "runbookWorkbench.viewJobs",
+        "title": "View Jobs",
+        "category": "Runbook Workbench",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "runbookWorkbench.viewSchedules",
+        "title": "View Schedules",
+        "category": "Runbook Workbench",
+        "icon": "$(calendar)"
+      },
+      {
+        "command": "runbookWorkbench.viewAssets",
+        "title": "Manage Account Resources",
+        "category": "Runbook Workbench",
+        "icon": "$(symbol-variable)"
+      },
+      {
+        "command": "runbookWorkbench.manageRuntimeEnvironments",
+        "title": "Manage Execution Environments",
+        "category": "Runbook Workbench",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "runbookWorkbench.viewAppPermissions",
+        "title": "Manage App Permissions",
+        "category": "Runbook Workbench",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "runbookWorkbench.deleteTmpFolder",
+        "title": "Delete Temp Folder",
+        "category": "Runbook Workbench",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "runbookWorkbench.deleteLocalModule",
+        "title": "Delete Local Module",
+        "category": "Runbook Workbench",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "runbookWorkbench.stopTestJob",
+        "title": "Stop Test Job",
+        "category": "Runbook Workbench",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "runbookWorkbench.runLocal",
+        "title": "Run Locally (with Asset Mocks)",
+        "category": "Runbook Workbench",
+        "icon": "$(terminal-powershell)"
+      },
+      {
+        "command": "runbookWorkbench.debugLocal",
+        "title": "Debug Locally (with Asset Mocks)",
+        "category": "Runbook Workbench",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "runbookWorkbench.createRunbook",
+        "title": "Create New Runbook",
+        "category": "Runbook Workbench",
+        "icon": "$(add)"
+      },
+      {
+        "command": "runbookWorkbench.deleteRunbook",
+        "title": "Delete Runbook(s)",
+        "category": "Runbook Workbench",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "runbookWorkbench.changeRunbookRuntimeEnvironment",
+        "title": "Set Execution Environment",
+        "category": "Runbook Workbench",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "runbookWorkbench.openLocalSettings",
+        "title": "Open local.settings.json",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.initAndFetchAllInSubscription",
+        "title": "Initialize All Accounts and Fetch All",
+        "category": "Runbook Workbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "runbookWorkbench.createAutomationAccount",
+        "title": "Create Automation Account",
+        "category": "Runbook Workbench",
+        "icon": "$(add)"
+      },
+      {
+        "command": "runbookWorkbench.deleteWorkspace",
+        "title": "Delete Entire Workspace",
+        "category": "Runbook Workbench",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "runbookWorkbench.fetchAllRunbooks",
+        "title": "Fetch All Runbooks",
+        "category": "Runbook Workbench",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "runbookWorkbench.syncAccount",
+        "title": "Sync with Azure",
+        "category": "Runbook Workbench",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "runbookWorkbench.generateCiCd",
+        "title": "Generate CI/CD Pipeline",
+        "category": "Runbook Workbench",
+        "icon": "$(github-action)"
+      },
+      {
+        "command": "runbookWorkbench.manageAssets",
+        "title": "Manage Account Resources",
+        "category": "Runbook Workbench"
+      },
+      {
+        "command": "runbookWorkbench.installModuleForLocalDebug",
+        "title": "Install Module for Local Debug",
+        "category": "Runbook Workbench",
+        "icon": "$(extensions-install-count)"
+      },
+      {
+        "command": "runbookWorkbench.deployLocalModuleToAzure",
+        "title": "Deploy Local Module to Azure Automation",
+        "category": "Runbook Workbench",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "runbookWorkbench.refreshWorkspaceRunbooks",
+        "title": "Refresh Workspace",
+        "category": "Runbook Workbench",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "runbookWorkbench.openWorkspaceRunbook",
+        "title": "Open Runbook",
+        "category": "Runbook Workbench",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "runbookWorkbench.clearRunbookSessions",
+        "title": "Clear Runbook Sessions",
+        "category": "Runbook Workbench",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "runbookWorkbench.showInPortal",
+        "title": "Show in Portal",
+        "category": "Runbook Workbench",
+        "icon": "$(globe)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "runbookWorkbench.refresh",
+          "when": "view == runbookWorkbench.accounts",
+          "group": "navigation"
+        },
+        {
+          "command": "runbookWorkbench.signIn",
+          "when": "view == runbookWorkbench.accounts",
+          "group": "navigation"
+        },
+        {
+          "command": "runbookWorkbench.refreshWorkspaceRunbooks",
+          "when": "view == runbookWorkbench.workspace",
+          "group": "navigation"
+        },
+        {
+          "command": "runbookWorkbench.clearRunbookSessions",
+          "when": "view == runbookWorkbench.localRuns",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "runbookWorkbench.fetchRunbook",
+          "when": "viewItem == runbook",
+          "group": "1_fetch@1"
+        },
+        {
+          "command": "runbookWorkbench.fetchDraftRunbook",
+          "when": "viewItem == runbook",
+          "group": "1_fetch@2"
+        },
+        {
+          "command": "runbookWorkbench.publishRunbook",
+          "when": "viewItem == runbook",
+          "group": "2_publish@1"
+        },
+        {
+          "command": "runbookWorkbench.uploadAsDraft",
+          "when": "viewItem == runbook",
+          "group": "2_publish@2"
+        },
+        {
+          "command": "runbookWorkbench.diffRunbook",
+          "when": "viewItem == runbook",
+          "group": "3_diff@1"
+        },
+        {
+          "command": "runbookWorkbench.startJob",
+          "when": "viewItem == runbook",
+          "group": "4_run@1"
+        },
+        {
+          "command": "runbookWorkbench.startTestJob",
+          "when": "viewItem == runbook",
+          "group": "4_run@2"
+        },
+        {
+          "command": "runbookWorkbench.runLocal",
+          "when": "viewItem == runbook",
+          "group": "4_run@4"
+        },
+        {
+          "command": "runbookWorkbench.debugLocal",
+          "when": "viewItem == runbook",
+          "group": "4_run@5"
+        },
+        {
+          "command": "runbookWorkbench.deleteRunbook",
+          "when": "viewItem == runbook",
+          "group": "5_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.changeRunbookRuntimeEnvironment",
+          "when": "viewItem == runbook",
+          "group": "5_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.showInPortal",
+          "when": "viewItem == runbook",
+          "group": "6_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.initAndFetchAllInSubscription",
+          "when": "viewItem == subscription",
+          "group": "1_initialize@1"
+        },
+        {
+          "command": "runbookWorkbench.createAutomationAccount",
+          "when": "viewItem == subscription",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.fetchAllRunbooks",
+          "when": "viewItem == automationAccount",
+          "group": "1_fetch@1"
+        },
+        {
+          "command": "runbookWorkbench.initWorkspace",
+          "when": "viewItem == automationAccount",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.createRunbook",
+          "when": "viewItem == automationAccount",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.viewJobs",
+          "when": "viewItem == automationAccount",
+          "group": "2_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.viewSchedules",
+          "when": "viewItem == automationAccount",
+          "group": "2_manage@3"
+        },
+        {
+          "command": "runbookWorkbench.viewAssets",
+          "when": "viewItem == automationAccount",
+          "group": "2_manage@4"
+        },
+        {
+          "command": "runbookWorkbench.manageRuntimeEnvironments",
+          "when": "viewItem == automationAccount",
+          "group": "2_manage@5"
+        },
+        {
+          "command": "runbookWorkbench.generateCiCd",
+          "when": "viewItem == automationAccount",
+          "group": "3_secondary@1"
+        },
+        {
+          "command": "runbookWorkbench.installModuleForLocalDebug",
+          "when": "viewItem == automationAccount",
+          "group": "3_secondary@2"
+        },
+        {
+          "command": "runbookWorkbench.viewAppPermissions",
+          "when": "viewItem == automationAccount",
+          "group": "3_secondary@3"
+        },
+        {
+          "command": "runbookWorkbench.syncAccount",
+          "when": "viewItem == automationAccount",
+          "group": "4_manage@0"
+        },
+        {
+          "command": "runbookWorkbench.showInPortal",
+          "when": "viewItem == automationAccount",
+          "group": "z_portal@0"
+        },
+        {
+          "command": "runbookWorkbench.openWorkspaceRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "1_open@1"
+        },
+        {
+          "command": "runbookWorkbench.fetchRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "2_fetch@1"
+        },
+        {
+          "command": "runbookWorkbench.fetchDraftRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "2_fetch@2"
+        },
+        {
+          "command": "runbookWorkbench.publishRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "3_publish@1"
+        },
+        {
+          "command": "runbookWorkbench.uploadAsDraft",
+          "when": "viewItem == workspaceRunbook",
+          "group": "3_publish@2"
+        },
+        {
+          "command": "runbookWorkbench.diffRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "4_diff@1"
+        },
+        {
+          "command": "runbookWorkbench.startJob",
+          "when": "viewItem == workspaceRunbook",
+          "group": "5_run@1"
+        },
+        {
+          "command": "runbookWorkbench.startTestJob",
+          "when": "viewItem == workspaceRunbook",
+          "group": "5_run@2"
+        },
+        {
+          "command": "runbookWorkbench.runLocal",
+          "when": "viewItem == workspaceRunbook",
+          "group": "5_run@4"
+        },
+        {
+          "command": "runbookWorkbench.debugLocal",
+          "when": "viewItem == workspaceRunbook",
+          "group": "5_run@5"
+        },
+        {
+          "command": "runbookWorkbench.installModuleForLocalDebug",
+          "when": "viewItem == workspaceRunbook",
+          "group": "5_run@6"
+        },
+        {
+          "command": "runbookWorkbench.deleteRunbook",
+          "when": "viewItem == workspaceRunbook",
+          "group": "6_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.changeRunbookRuntimeEnvironment",
+          "when": "viewItem == workspaceRunbook",
+          "group": "6_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.showInPortal",
+          "when": "viewItem == workspaceRunbook",
+          "group": "7_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.manageRuntimeEnvironments",
+          "when": "viewItem == accountSection_runtimeEnvironments",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "runbookWorkbench.manageRuntimeEnvironments",
+          "when": "viewItem == runtimeEnvironment",
+          "group": "1_manage@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "runbookWorkbench.explorerWorkspaceMenu",
+          "when": "explorerResourceIsFolder && resourceFilename == aaccounts",
+          "group": "1_runbookWorkbench@0"
+        },
+        {
+          "submenu": "runbookWorkbench.explorerAccountMenu",
+          "when": "explorerResourceIsFolder && resourceDirname =~ /(^|[\\\\/])aaccounts$/ && resourceFilename != aaccounts && resourceFilename != .settings && resourceFilename != mocks",
+          "group": "1_runbookWorkbench@0"
+        },
+        {
+          "submenu": "runbookWorkbench.explorerRunbookMenu",
+          "when": "!explorerResourceIsFolder && (resourceExtname == .ps1 || resourceExtname == .py) && resourceDirname =~ /(^|[\\\\/])aaccounts[\\\\/][^\\\\/]+$/",
+          "group": "1_runbookWorkbench@0"
+        },
+        {
+          "command": "runbookWorkbench.deleteTmpFolder",
+          "when": "explorerResourceIsFolder && resourceFilename == tmp && resourceDirname =~ /(^|[\\\\/])\\.settings$/",
+          "group": "1_runbookWorkbench@0"
+        },
+        {
+          "command": "runbookWorkbench.deployLocalModuleToAzure",
+          "when": "explorerResourceIsFolder && resourceDirname =~ /(^|[\\\\/])modules$/",
+          "group": "1_runbookWorkbench@0"
+        },
+        {
+          "command": "runbookWorkbench.deleteLocalModule",
+          "when": "explorerResourceIsFolder && resourceDirname =~ /(^|[\\\\/])modules$/",
+          "group": "1_runbookWorkbench@0"
+        }
+      ],
+      "runbookWorkbench.explorerWorkspaceMenu": [
+        {
+          "command": "runbookWorkbench.createAutomationAccount",
+          "group": "runbookWorkbench_manage@0"
+        },
+        {
+          "command": "runbookWorkbench.deleteWorkspace",
+          "group": "runbookWorkbench_danger@99"
+        }
+      ],
+      "runbookWorkbench.explorerAccountMenu": [
+        {
+          "command": "runbookWorkbench.createRunbook",
+          "group": "runbookWorkbench_manage@0"
+        },
+        {
+          "command": "runbookWorkbench.viewJobs",
+          "group": "runbookWorkbench_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.viewSchedules",
+          "group": "runbookWorkbench_manage@3"
+        },
+        {
+          "command": "runbookWorkbench.viewAssets",
+          "group": "runbookWorkbench_manage@3b"
+        },
+        {
+          "command": "runbookWorkbench.manageRuntimeEnvironments",
+          "group": "runbookWorkbench_manage@3c"
+        },
+        {
+          "command": "runbookWorkbench.generateCiCd",
+          "group": "runbookWorkbench_manage@4"
+        },
+        {
+          "command": "runbookWorkbench.installModuleForLocalDebug",
+          "group": "runbookWorkbench_manage@5"
+        },
+        {
+          "command": "runbookWorkbench.deployLocalModuleToAzure",
+          "group": "runbookWorkbench_manage@5b"
+        },
+        {
+          "command": "runbookWorkbench.viewAppPermissions",
+          "group": "runbookWorkbench_manage@6"
+        },
+        {
+          "command": "runbookWorkbench.syncAccount",
+          "group": "runbookWorkbench_manage@7"
+        },
+        {
+          "command": "runbookWorkbench.showInPortal",
+          "group": "z_portal@0"
+        }
+      ],
+      "runbookWorkbench.explorerRunbookMenu": [
+        {
+          "command": "runbookWorkbench.fetchRunbook",
+          "group": "runbookWorkbench_fetch@0"
+        },
+        {
+          "command": "runbookWorkbench.fetchDraftRunbook",
+          "group": "runbookWorkbench_fetch@1"
+        },
+        {
+          "command": "runbookWorkbench.uploadAsDraft",
+          "group": "runbookWorkbench_publish@0"
+        },
+        {
+          "command": "runbookWorkbench.publishRunbook",
+          "group": "runbookWorkbench_publish@1"
+        },
+        {
+          "command": "runbookWorkbench.diffRunbook",
+          "group": "runbookWorkbench_compare@0"
+        },
+        {
+          "command": "runbookWorkbench.startJob",
+          "group": "runbookWorkbench_run@0"
+        },
+        {
+          "command": "runbookWorkbench.startTestJob",
+          "group": "runbookWorkbench_run@1"
+        },
+        {
+          "command": "runbookWorkbench.runLocal",
+          "group": "runbookWorkbench_local@0"
+        },
+        {
+          "command": "runbookWorkbench.debugLocal",
+          "group": "runbookWorkbench_local@1"
+        },
+        {
+          "command": "runbookWorkbench.deleteRunbook",
+          "group": "runbookWorkbench_danger@99"
+        },
+        {
+          "command": "runbookWorkbench.changeRunbookRuntimeEnvironment",
+          "group": "runbookWorkbench_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.showInPortal",
+          "group": "runbookWorkbench_zportal@0"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "runbookWorkbench.debugLocal",
+        "key": "f5",
+        "when": "editorTextFocus && !inDebugMode && resourceDirname =~ /(^|[\\\\/])aaccounts[\\\\/][^\\\\/]+$/ && (resourceExtname == .ps1 || resourceExtname == .py)"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "runbook-workbench-icons",
+        "label": "Runbook Workbench",
+        "path": "./resources/runbook-workbench-icons.json"
+      }
+    ],
+    "configuration": {
+      "title": "Runbook Workbench",
+      "properties": {
+        "runbookWorkbench.cloud": {
+          "type": "string",
+          "default": "AzureCloud",
+          "enum": [
+            "AzureCloud",
+            "AzureUSGovernment",
+            "AzureChinaCloud"
+          ],
+          "enumDescriptions": [
+            "Azure Commercial Cloud",
+            "Azure US Government Cloud",
+            "Azure China Cloud (21Vianet)"
+          ],
+          "description": "The Azure cloud environment to connect to."
+        },
+        "runbookWorkbench.workspacePath": {
+          "type": "string",
+          "default": "",
+          "description": "Override the workspace root path for runbook files. Leave empty to use the VS Code workspace folder."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "files.associations": {
+        "**/.settings/mocks/*.psm1.template": "powershell",
+        "**/.settings/mocks/*.py.template": "python"
+      }
+    }
+  },
+  "scripts": {
+    "prebuild": "node scripts/bump-minor.mjs",
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "compile": "tsc --noEmit",
+    "package": "vsce package --no-dependencies",
+    "lint": "tsc --noEmit",
+    "test": "node ./test/run-tests.cjs",
+    "test:e2e": "node ./test/run-e2e.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "sharp": "^0.34.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@azure/arm-automation": "^10.1.1"
+  }
+}

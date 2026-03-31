@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- 3 stacked script documents - back to front -->
+  <!-- Back document (darkest blue) -->
+  <rect x="5.5" y="1" width="9" height="11.5" rx="1" fill="#0E4FA0"/>
+  <!-- Middle document (medium blue) -->
+  <rect x="3" y="2.5" width="9" height="11.5" rx="1" fill="#3794FF"/>
+  <!-- Front document (white) -->
+  <rect x="0.5" y="4" width="9" height="11.5" rx="1" fill="#FFFFFF"/>
+  <!-- Front document border -->
+  <rect x="0.5" y="4" width="9" height="11.5" rx="1" fill="none" stroke="#C0D8F0" stroke-width="0.5"/>
+  <!-- Code lines on front document -->
+  <line x1="2" y1="6.5" x2="8.5" y2="6.5" stroke="#3794FF" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="2" y1="8.5" x2="8.5" y2="8.5" stroke="#3794FF" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="2" y1="10.5" x2="8.5" y2="10.5" stroke="#3794FF" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="2" y1="12.5" x2="6" y2="12.5" stroke="#5AADFF" stroke-width="0.65" stroke-linecap="round" opacity="0.7"/>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Network hub - active/open (brighter spokes) -->
+  <!-- Connection spokes -->
+  <line x1="8" y1="8" x2="8" y2="2" stroke="#5AADFF" stroke-width="0.9"/>
+  <line x1="8" y1="8" x2="13.2" y2="5" stroke="#5AADFF" stroke-width="0.9"/>
+  <line x1="8" y1="8" x2="13.2" y2="11" stroke="#5AADFF" stroke-width="0.9"/>
+  <line x1="8" y1="8" x2="8" y2="14" stroke="#5AADFF" stroke-width="0.9"/>
+  <line x1="8" y1="8" x2="2.8" y2="11" stroke="#5AADFF" stroke-width="0.9"/>
+  <line x1="8" y1="8" x2="2.8" y2="5" stroke="#5AADFF" stroke-width="0.9"/>
+  <!-- Satellite nodes (brighter) -->
+  <circle cx="8" cy="2" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <circle cx="13.2" cy="5" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <circle cx="13.2" cy="11" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <circle cx="8" cy="14" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <circle cx="2.8" cy="11" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <circle cx="2.8" cy="5" r="1.4" fill="#7FCCFF" stroke="#FFFFFF" stroke-width="0.6"/>
+  <!-- Central hub (medium blue = active) -->
+  <circle cx="8" cy="8" r="3" fill="#3794FF"/>
+  <!-- Hub server lines (white) -->
+  <rect x="6.4" y="7" width="3.2" height="0.75" rx="0.3" fill="#FFFFFF"/>
+  <rect x="6.4" y="8.5" width="3.2" height="0.75" rx="0.3" fill="#FFFFFF"/>
+  <circle cx="9.2" cy="7.37" r="0.38" fill="#A0DCFF"/>
+  <circle cx="9.2" cy="8.87" r="0.38" fill="#A0DCFF"/>
+</svg>
