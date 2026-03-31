@@ -1,0 +1,9 @@
+{
+  "modules": [
+    {
+      "name": "Az.Accounts",
+      "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/3.0.2",
+      "version": "3.0.2"
+    }
+  ]
+}

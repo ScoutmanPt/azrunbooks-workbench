@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Gear shape (12-tooth star polygon) -->
+  <polygon points="
+    15,8 13.02,9.35 14.06,11.5 11.68,11.68 11.5,14.06 9.35,13.02
+    8,15 6.65,13.02 4.5,14.06 4.32,11.68 1.94,11.5 2.98,9.35
+    1,8 2.98,6.65 1.94,4.5 4.32,4.32 4.5,1.94 6.65,2.98
+    8,1 9.35,2.98 11.5,1.94 11.68,4.32 14.06,4.5 13.02,6.65"
+    fill="#3794FF"/>
+  <!-- Inner circle hole -->
+  <circle cx="8" cy="8" r="3.2" fill="#1E1E2E"/>
+  <!-- Lightning bolt -->
+  <polygon points="8.8,3.5 11,8 8.6,8 7.2,12.5 5,8.5 7.4,8.5" fill="#E8A000"/>
+  <!-- Blue accent lines -->
+  <line x1="1" y1="14" x2="15" y2="14" stroke="#3794FF" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="3" y1="15.4" x2="13" y2="15.4" stroke="#3794FF" stroke-width="0.8" stroke-linecap="round" opacity="0.6"/>
+</svg>

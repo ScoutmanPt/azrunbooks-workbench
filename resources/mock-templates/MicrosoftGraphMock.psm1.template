@@ -1,0 +1,58 @@
+$script:MockMgContext = $null
+
+function Connect-MgGraph {
+  [CmdletBinding(DefaultParameterSetName = 'Identity')]
+  param(
+    [Parameter(ParameterSetName = 'Identity', Mandatory = $true)]
+    [switch]$Identity,
+
+    [Parameter(ParameterSetName = 'Identity')]
+    [Alias('AppId', 'ApplicationId')]
+    [string]$ClientId,
+
+    [Parameter(ParameterSetName = 'Identity')]
+    [Alias('Audience', 'Tenant')]
+    [string]$TenantId,
+
+    [Parameter(ParameterSetName = 'Identity')]
+    [string]$Environment,
+
+    [Parameter(ParameterSetName = 'Identity')]
+    [switch]$NoWelcome
+  )
+
+  $script:MockMgContext = [PSCustomObject]@{
+    AuthType = 'AppOnly'
+    AuthProviderType = 'ManagedIdentity.Mock'
+    ClientId = if ($ClientId) { $ClientId } else { 'system-assigned' }
+    TenantId = $TenantId
+    Environment = if ($Environment) { $Environment } else { 'Global' }
+    Scopes = @('https://graph.microsoft.com/.default')
+    IsMock = $true
+    ConnectedAt = (Get-Date).ToString('o')
+  }
+
+  Write-Warning "[Mock] Connect-MgGraph -Identity is using a local mock context. No real managed identity token is acquired outside Azure."
+
+  if (-not $NoWelcome) {
+    Write-Host 'Welcome To Microsoft Graph!'
+  }
+
+  return $script:MockMgContext
+}
+
+function Get-MgContext {
+  if (-not $script:MockMgContext) {
+    Write-Warning '[Mock] No active Microsoft Graph context. Call Connect-MgGraph first.'
+    return $null
+  }
+
+  return $script:MockMgContext
+}
+
+function Disconnect-MgGraph {
+  [CmdletBinding()]
+  param()
+
+  $script:MockMgContext = $null
+}

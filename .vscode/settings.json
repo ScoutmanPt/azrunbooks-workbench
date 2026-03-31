@@ -1,0 +1,11 @@
+{
+  // Use a custom bash profile that runs `nvm use 20` on terminal start.
+  // Requires `nvm` to be installed and available in shell init scripts.
+  "terminal.integrated.profiles.linux": {
+    "bash (nvm use 20)": {
+      "path": "/bin/bash",
+      "args": ["-ic", "nvm use 20 >/dev/null 2>&1 || true; exec bash"]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "bash (nvm use 20)"
+}

@@ -1,0 +1,11 @@
+{
+  "certificates": [
+    {
+      "name": "MyAutomationCertificate",
+      "base64Value": "BASE64_PFX_CONTENT",
+      "password": "",
+      "description": "Optional pipeline-imported certificate",
+      "isExportable": false
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Document -->
+  <rect x="2" y="1" width="10" height="13" rx="1" fill="#FFF8EE"/>
+  <polygon points="10,1 12,3 10,3" fill="#D8A058"/>
+  <polygon points="10,1 10,3 12,3" fill="#EDCB88"/>
+  <!-- Python 2 - amber stripe -->
+  <rect x="2" y="1" width="1.8" height="13" rx="0" fill="#C76B00"/>
+  <rect x="2" y="1" width="1.8" height="1" rx="0.8" fill="#C76B00"/>
+  <!-- Code lines (Python yellow) -->
+  <line x1="5" y1="4.5" x2="11.5" y2="4.5" stroke="#FFC107" stroke-width="0.9" stroke-linecap="round" opacity="0.8"/>
+  <line x1="5" y1="7"   x2="11.5" y2="7"   stroke="#FFC107" stroke-width="0.9" stroke-linecap="round" opacity="0.8"/>
+  <line x1="5" y1="9.5" x2="8.5"  y2="9.5" stroke="#FFC107" stroke-width="0.9" stroke-linecap="round" opacity="0.8"/>
+  <!-- Simplified Python snake coil (S-curve) -->
+  <path d="M5.5 14 Q5.5 11 8 11 Q10.5 11 10.5 12.5 Q10.5 14 8 14" fill="none" stroke="#C76B00" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Snake head dot -->
+  <circle cx="5.5" cy="14" r="0.9" fill="#C76B00"/>
+</svg>

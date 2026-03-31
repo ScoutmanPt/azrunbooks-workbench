@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#081726"/>
+      <stop offset="1" stop-color="#0F5078"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <rect x="890" y="30" width="220" height="98" rx="16" fill="#081A2C" stroke="#8ED8FF" stroke-opacity=".2"/>
+  <rect x="912" y="52" width="176" height="16" rx="8" fill="#173953"/>
+  <rect x="912" y="80" width="144" height="12" rx="6" fill="#38BDF8"/>
+  <rect x="912" y="102" width="116" height="12" rx="6" fill="#2DD4BF"/>
+  <path d="M40 118H430" stroke="#FFB900" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#FFE8A6" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">SETTINGS AND LOCAL STATE</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Configuration</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">Cloud selection, workspace paths, local files, and git behavior.</text>
+</svg>

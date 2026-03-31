@@ -1,0 +1,114 @@
+$script:MockPnPConnection = $null
+
+function Connect-PnPOnline {
+    [CmdletBinding(DefaultParameterSetName = 'Credentials')]
+    param(
+        [Parameter(ParameterSetName = 'Credentials', Mandatory = $true)]
+        [string]$Url,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$ClientId,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$ClientSecret,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$Tenant,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$Username,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$Password,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$CertificatePath,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$CertificatePassword,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$Interactive,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$DeviceLogin,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$ManagedIdentity,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$ReturnConnection,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string[]]$Scopes,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$Environment,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$CloudEnvironment,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        $Connection,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$UseWebLogin,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$CurrentCredentials,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$LogonBehavior,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$ForceAuthentication,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$Host,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$LaunchBrowser,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$RedirectUri,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [string]$AccessToken,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$ShowBanner,
+
+        [Parameter(ParameterSetName = 'Credentials')]
+        [switch]$DisableTelemetry
+    )
+
+    $json = Get-Content -Path "$PSScriptRoot\..\..\..\..\..\local.settings.json" -Raw | ConvertFrom-Json
+    if (-not $ClientId) {
+        $ClientId = $json.PnPAppId
+    }
+
+    $script:MockPnPConnection = PnP.PowerShell\Connect-PnPOnline -url $Url -ClientId $ClientId -ReturnConnection
+
+    if ($ReturnConnection) {
+        return $script:MockPnPConnection
+    }
+
+    return $script:MockPnPConnection
+}
+
+
+function Get-PnPConnection {
+  if (-not $script:MockPnPConnection) {
+    Write-Warning '[Mock] No active PnP connection. Call Connect-PnPOnline first.'
+    return $null
+  }
+
+  return $script:MockPnPConnection
+}
+
+function Disconnect-PnPOnline {
+  [CmdletBinding()]
+  param()
+
+  $script:MockPnPConnection = $null
+}

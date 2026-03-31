@@ -1,0 +1,322 @@
+{
+  "fonts": [
+    {
+      "id": "codicons",
+      "src": [
+        {
+          "path": "./codicon.ttf",
+          "format": "truetype"
+        }
+      ],
+      "weight": "normal",
+      "style": "normal",
+      "size": "16px"
+    }
+  ],
+  "iconDefinitions": {
+    "_account_blue": {
+      "iconPath": "./icons/folder_account_blue.svg"
+    },
+    "_account_blue_open": {
+      "iconPath": "./icons/folder_account_blue_open.svg"
+    },
+    "_account_green": {
+      "iconPath": "./icons/folder_account_green.svg"
+    },
+    "_account_green_open": {
+      "iconPath": "./icons/folder_account_green_open.svg"
+    },
+    "_account_yellow": {
+      "iconPath": "./icons/folder_account_yellow.svg"
+    },
+    "_account_yellow_open": {
+      "iconPath": "./icons/folder_account_yellow_open.svg"
+    },
+    "_account_orange": {
+      "iconPath": "./icons/folder_account_orange.svg"
+    },
+    "_account_orange_open": {
+      "iconPath": "./icons/folder_account_orange_open.svg"
+    },
+    "_account_red": {
+      "iconPath": "./icons/folder_account_red.svg"
+    },
+    "_account_red_open": {
+      "iconPath": "./icons/folder_account_red_open.svg"
+    },
+    "_account_purple": {
+      "iconPath": "./icons/folder_account_purple.svg"
+    },
+    "_account_purple_open": {
+      "iconPath": "./icons/folder_account_purple_open.svg"
+    },
+    "_account_cyan": {
+      "iconPath": "./icons/folder_account_cyan.svg"
+    },
+    "_account_cyan_open": {
+      "iconPath": "./icons/folder_account_cyan_open.svg"
+    },
+    "_account_magenta": {
+      "iconPath": "./icons/folder_account_magenta.svg"
+    },
+    "_account_magenta_open": {
+      "iconPath": "./icons/folder_account_magenta_open.svg"
+    },
+    "_account_bright_green": {
+      "iconPath": "./icons/folder_account_bright_green.svg"
+    },
+    "_account_bright_green_open": {
+      "iconPath": "./icons/folder_account_bright_green_open.svg"
+    },
+    "_account_bright_yellow": {
+      "iconPath": "./icons/folder_account_bright_yellow.svg"
+    },
+    "_account_bright_yellow_open": {
+      "iconPath": "./icons/folder_account_bright_yellow_open.svg"
+    },
+    "_account_bright_blue": {
+      "iconPath": "./icons/folder_account_bright_blue.svg"
+    },
+    "_account_bright_blue_open": {
+      "iconPath": "./icons/folder_account_bright_blue_open.svg"
+    },
+    "_account_bright_magenta": {
+      "iconPath": "./icons/folder_account_bright_magenta.svg"
+    },
+    "_account_bright_magenta_open": {
+      "iconPath": "./icons/folder_account_bright_magenta_open.svg"
+    },
+    "_folder_accounts": {
+      "iconPath": "./icons/folder_accounts.svg"
+    },
+    "_folder_accounts_open": {
+      "iconPath": "./icons/folder_accounts_open.svg"
+    },
+    "_folder_recentjobs": {
+      "iconPath": "./icons/folder_recentjobs.svg"
+    },
+    "_folder_recentjobs_open": {
+      "iconPath": "./icons/folder_recentjobs_open.svg"
+    },
+    "_folder_schedules": {
+      "iconPath": "./icons/folder_schedules.svg"
+    },
+    "_folder_schedules_open": {
+      "iconPath": "./icons/folder_schedules_open.svg"
+    },
+    "_folder_python": {
+      "iconPath": "./icons/folder_python.svg"
+    },
+    "_folder_python_open": {
+      "iconPath": "./icons/folder_python_open.svg"
+    },
+    "_folder_powershell": {
+      "iconPath": "./icons/folder_powershell.svg"
+    },
+    "_folder_powershell_open": {
+      "iconPath": "./icons/folder_powershell_open.svg"
+    },
+    "_folder_assets": {
+      "iconPath": "./icons/folder_assets.svg"
+    },
+    "_folder_assets_open": {
+      "iconPath": "./icons/folder_assets_open.svg"
+    },
+    "_folder_hybrid": {
+      "iconPath": "./icons/folder_hybrid.svg"
+    },
+    "_folder_hybrid_open": {
+      "iconPath": "./icons/folder_hybrid_open.svg"
+    },
+    "_folder_runbooks": {
+      "iconPath": "./icons/folder_runbooks.svg"
+    },
+    "_folder_runbooks_open": {
+      "iconPath": "./icons/folder_runbooks_open.svg"
+    },
+    "_folder_default": {
+      "iconPath": "./icons/folder_default.svg"
+    },
+    "_folder_default_open": {
+      "iconPath": "./icons/folder_default_open.svg"
+    },
+    "_folder_muted": {
+      "iconPath": "./icons/folder_muted.svg"
+    },
+    "_folder_muted_open": {
+      "iconPath": "./icons/folder_muted_open.svg"
+    },
+    "_folder_templates": {
+      "iconPath": "./icons/folder_templates.svg"
+    },
+    "_folder_templates_open": {
+      "iconPath": "./icons/folder_templates_open.svg"
+    },
+    "_folder_settings": {
+      "iconPath": "./icons/folder_settings.svg"
+    },
+    "_folder_settings_open": {
+      "iconPath": "./icons/folder_settings_open.svg"
+    },
+    "_folder_cache": {
+      "iconPath": "./icons/folder_cache.svg"
+    },
+    "_folder_cache_open": {
+      "iconPath": "./icons/folder_cache_open.svg"
+    },
+    "_file_ps1": {
+      "fontCharacter": "\\EBC7",
+      "fontColor": "#3B8EEA",
+      "fontId": "codicons"
+    },
+    "_file_psm1": {
+      "fontCharacter": "\\EBC7",
+      "fontColor": "#569CD6",
+      "fontId": "codicons"
+    },
+    "_file_ps51": {
+      "iconPath": "./icons/file_ps51.svg"
+    },
+    "_file_ps51_azure": {
+      "iconPath": "./icons/file_ps51_azure.svg"
+    },
+    "_file_ps71": {
+      "iconPath": "./icons/file_ps71.svg"
+    },
+    "_file_ps71_azure": {
+      "iconPath": "./icons/file_ps71_azure.svg"
+    },
+    "_file_ps72": {
+      "iconPath": "./icons/file_ps72.svg"
+    },
+    "_file_ps72_azure": {
+      "iconPath": "./icons/file_ps72_azure.svg"
+    },
+    "_file_pswf": {
+      "iconPath": "./icons/file_pswf.svg"
+    },
+    "_file_pswf_azure": {
+      "iconPath": "./icons/file_pswf_azure.svg"
+    },
+    "_file_py2": {
+      "iconPath": "./icons/file_py2.svg"
+    },
+    "_file_py2_azure": {
+      "iconPath": "./icons/file_py2_azure.svg"
+    },
+    "_file_py3": {
+      "iconPath": "./icons/file_py3.svg"
+    },
+    "_file_py3_azure": {
+      "iconPath": "./icons/file_py3_azure.svg"
+    },
+    "_file_graphical": {
+      "iconPath": "./icons/file_graphical.svg"
+    },
+    "_file_graphical_azure": {
+      "iconPath": "./icons/file_graphical_azure.svg"
+    },
+    "_file_graphical_wf": {
+      "iconPath": "./icons/file_graphical_wf.svg"
+    },
+    "_file_graphical_wf_azure": {
+      "iconPath": "./icons/file_graphical_wf_azure.svg"
+    },
+    "_folder_published": {
+      "iconPath": "./icons/folder_published.svg"
+    },
+    "_folder_published_open": {
+      "iconPath": "./icons/folder_published_open.svg"
+    },
+    "_folder_draft": {
+      "iconPath": "./icons/folder_draft.svg"
+    },
+    "_folder_draft_open": {
+      "iconPath": "./icons/folder_draft_open.svg"
+    },
+    "_file_gitignore": {
+      "iconPath": "./icons/file_gitignore.svg"
+    },
+    "_file_json": {
+      "iconPath": "./icons/file_json.svg"
+    },
+    "_file_json_muted": {
+      "iconPath": "./icons/file_json_muted.svg"
+    },
+    "_file_env_muted": {
+      "iconPath": "./icons/file_env_muted.svg"
+    },
+    "_file_template": {
+      "iconPath": "./icons/file_template.svg"
+    },
+    "_file_aaccounts": {
+      "iconPath": "./icons/file_aaccounts.svg"
+    }
+  },
+  "fileExtensions": {
+    "ps1": "_file_ps72",
+    "psm1": "_file_psm1",
+    "json": "_file_json",
+    "py": "_file_py3",
+    "template": "_file_template"
+  },
+  "fileNames": {
+    ".gitignore": "_file_gitignore",
+    ".env": "_file_env_muted",
+    "aaccounts.json": "_file_aaccounts",
+    "local.settings.json": "_file_json_muted",
+    "AutomationAssetsMock.psm1.template": "_file_template",
+    "PnPPowerShellMock.psm1.template": "_file_template",
+    "MicrosoftGraphMock.psm1.template": "_file_template",
+    "automationstubs.py.template": "_file_template",
+    "Get-GraphSites.ps1": "_file_ps72_azure",
+    "Get-GraphTenantSites.ps1": "_file_ps72_azure",
+    "Get-PnPSites.ps1": "_file_ps72_azure"
+  },
+  "folder": "_folder_default",
+  "folderExpanded": "_folder_default_open",
+  "folderNames": {
+    ".vscode": "_folder_default",
+    ".rb-workb": "_account_orange",
+    ".settings": "_folder_settings",
+    "cache": "_folder_muted",
+    "mocks": "_folder_templates",
+    "templates": "_folder_templates",
+    "workspace-cache": "_folder_muted",
+    "generated": "_folder_muted",
+    "modules": "_folder_muted",
+    "tmp": "_folder_muted",
+    "aaccounts": "_folder_accounts",
+    "Assets": "_folder_assets",
+    "HybridWorkerGroups": "_folder_hybrid",
+    "PowerShellModules": "_folder_powershell",
+    "PythonPackages": "_folder_python",
+    "RecentJobs": "_folder_recentjobs",
+    "Schedules": "_folder_schedules",
+    "Published": "_folder_published",
+    "Draft": "_folder_draft",
+    "aa-etension": "_account_bright_blue"
+  },
+  "folderNamesExpanded": {
+    ".vscode": "_folder_default_open",
+    ".rb-workb": "_account_orange_open",
+    ".settings": "_folder_settings_open",
+    "cache": "_folder_muted_open",
+    "mocks": "_folder_templates_open",
+    "templates": "_folder_templates_open",
+    "workspace-cache": "_folder_muted_open",
+    "generated": "_folder_muted_open",
+    "modules": "_folder_muted_open",
+    "tmp": "_folder_muted_open",
+    "aaccounts": "_folder_accounts_open",
+    "Assets": "_folder_assets_open",
+    "HybridWorkerGroups": "_folder_hybrid_open",
+    "PowerShellModules": "_folder_powershell_open",
+    "PythonPackages": "_folder_python_open",
+    "RecentJobs": "_folder_recentjobs_open",
+    "Schedules": "_folder_schedules_open",
+    "Published": "_folder_published_open",
+    "Draft": "_folder_draft_open",
+    "aa-etension": "_account_bright_blue_open"
+  }
+}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071423"/>
+      <stop offset="1" stop-color="#12507B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <path d="M860 84H914" stroke="#2DD4BF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M934 84H988" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+  <path d="M1008 84H1062" stroke="#FFB900" stroke-width="6" stroke-linecap="round"/>
+  <path d="M1082 84H1136" stroke="#A78BFA" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="860" cy="84" r="10" fill="#2DD4BF"/>
+  <circle cx="934" cy="84" r="10" fill="#38BDF8"/>
+  <circle cx="1008" cy="84" r="10" fill="#FFB900"/>
+  <circle cx="1082" cy="84" r="10" fill="#A78BFA"/>
+  <circle cx="1136" cy="84" r="10" fill="#60A5FA"/>
+  <path d="M40 118H394" stroke="#2DD4BF" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#A7DEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">END TO END FLOW</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Workflow</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">From sign-in and fetch through local validation and publish.</text>
+</svg>

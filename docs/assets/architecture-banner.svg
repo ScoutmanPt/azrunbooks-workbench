@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071423"/>
+      <stop offset="1" stop-color="#0D4C73"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <rect x="880" y="28" width="250" height="104" rx="16" fill="#081A2C" stroke="#8ED8FF" stroke-opacity=".22"/>
+  <rect x="905" y="50" width="66" height="12" rx="6" fill="#2DD4BF"/>
+  <rect x="980" y="50" width="54" height="12" rx="6" fill="#38BDF8"/>
+  <rect x="1043" y="50" width="61" height="12" rx="6" fill="#A78BFA"/>
+  <rect x="905" y="74" width="172" height="10" rx="5" fill="#1D3D57"/>
+  <rect x="905" y="94" width="134" height="10" rx="5" fill="#1D3D57"/>
+  <rect x="905" y="114" width="104" height="10" rx="5" fill="#1D3D57"/>
+  <path d="M40 118H450" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#A7DEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">INTERNAL DESIGN</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Architecture</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">Services, tree providers, workspace state, and Azure data flow.</text>
+</svg>

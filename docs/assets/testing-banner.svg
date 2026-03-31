@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#081726"/>
+      <stop offset="1" stop-color="#12496F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="160" rx="18" fill="url(#g)"/>
+  <rect x="884" y="34" width="238" height="92" rx="16" fill="#081A2C" stroke="#8ED8FF" stroke-opacity=".2"/>
+  <text x="906" y="66" fill="#DDF4FF" font-family="Consolas, 'Courier New', monospace" font-size="16">npm run compile</text>
+  <text x="906" y="90" fill="#DDF4FF" font-family="Consolas, 'Courier New', monospace" font-size="16">npm run build</text>
+  <text x="906" y="114" fill="#9EF3C8" font-family="Consolas, 'Courier New', monospace" font-size="16">npm test</text>
+  <path d="M40 118H410" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+  <text x="42" y="72" fill="#A7DEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2">QUALITY AND VALIDATION</text>
+  <text x="42" y="110" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">Testing</text>
+  <text x="42" y="136" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="18">Automated coverage, manual checks, edge cases, and Azure-backed validation.</text>
+</svg>
