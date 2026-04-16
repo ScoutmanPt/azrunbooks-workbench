@@ -1,14 +1,17 @@
 import * as vscode from 'vscode';
 import type { AzureAutomationAccount, AzureService } from './azureService';
 import type { AssetTab, AssetsPanelState, AssetsPanelMessage } from './assetsShared';
-import { esc, errMsg } from './assetsShared';
+import { esc, errMsg, SUPPORTED_RUNTIME_VERSIONS } from './assetsShared';
 import type { AuthManager } from './authManager';
 import type { LocalRunner } from './localRunner';
 import type { WorkspaceManager } from './workspaceManager';
 import { executeInstallModuleForLocalDebug } from './installModuleCommands';
 import { executeDeployModuleToAzure } from './deployModuleCommands';
 import { loadModules, renderModulesPane, MODULES_CSS, MODULES_SCRIPT } from './assetsTabModules';
-import { loadRuntimeEnvironments, renderRuntimeEnvironmentsPane } from './assetsTabRuntimeEnvironments';
+import {
+  loadRuntimeEnvironments, renderRuntimeEnvironmentsPane,
+  renderRuntimeEnvironmentsFormBody, renderRuntimeEnvironmentsSubmitButton, RUNTIME_ENVIRONMENTS_FORM_SCRIPT,
+} from './assetsTabRuntimeEnvironments';
 
 // ── Tab components ────────────────────────────────────────────────────────────
 import {
@@ -90,11 +93,9 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<{
   );
   if (!language) { return; }
 
-  const version = await vscode.window.showInputBox({
+  const versionOptions = (SUPPORTED_RUNTIME_VERSIONS[language.value] ?? []).map(v => ({ label: v, value: v }));
+  const version = await vscode.window.showQuickPick(versionOptions, {
     title: `Runtime Version - ${name}`,
-    prompt: language.value === 'PowerShell' ? 'Example: 7.2' : 'Example: 3.10',
-    validateInput: value => value.trim() ? null : 'Version is required.',
-    ignoreFocusOut: true,
   });
   if (!version) { return; }
 
@@ -112,7 +113,7 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<{
     name,
     location,
     language: language.value,
-    version: version.trim(),
+    version: version.value,
     description: description.trim() || undefined,
     defaultPackages: Object.keys(defaultPackages).length > 0 ? defaultPackages : undefined,
   };
@@ -206,33 +207,49 @@ export class AssetsPanel implements vscode.Disposable {
         const err = validateVariableForm(msg.formData);
         if (err) { throw new Error(err); }
         return submitVariable(this.azure, this.state.account, msg.formData);
-      }); break;
+      }, msg.formData as unknown as Record<string, unknown>); break;
 
       case 'submitCredentialForm':  await this.runSubmit('credentials',  () => {
         const err = validateCredentialForm(msg.formData, this.state.form.mode);
         if (err) { throw new Error(err); }
         return submitCredential(this.azure, this.state.account, msg.formData, this.state.form.mode);
-      }); break;
+      }, msg.formData as unknown as Record<string, unknown>); break;
 
       case 'submitConnectionForm':  await this.runSubmit('connections',  () => {
         const err = validateConnectionForm(msg.formData);
         if (err) { throw new Error(err); }
         return submitConnection(this.azure, this.state.account, msg.formData);
-      }); break;
+      }, msg.formData as unknown as Record<string, unknown>); break;
 
       case 'submitCertificateForm': await this.runSubmit('certificates', () => {
         const err = validateCertificateForm(msg.formData, this.state.form.mode);
         if (err) { throw new Error(err); }
         return submitCertificate(this.azure, this.state.account, msg.formData);
-      }); break;
+      }, msg.formData as unknown as Record<string, unknown>); break;
+
+      case 'submitRuntimeEnvironmentForm': await this.runSubmit('runtimeEnvironments', () => {
+        const fd = msg.formData;
+        if (!fd.name.trim())     { throw new Error('Name is required.'); }
+        if (!fd.language.trim()) { throw new Error('Language is required.'); }
+        if (!fd.version.trim())  { throw new Error('Version is required.'); }
+        const pkgMap: Record<string, string> = {};
+        fd.packageKeys.forEach((k, i) => { if (k.trim()) { pkgMap[k.trim()] = fd.packageVersions[i] ?? ''; } });
+        return this.azure.createRuntimeEnvironment(
+          this.state.account.subscriptionId, this.state.account.resourceGroupName, this.state.account.name,
+          { name: fd.name.trim(), location: this.state.account.location, language: fd.language, version: fd.version,
+            description: fd.description.trim() || undefined,
+            defaultPackages: Object.keys(pkgMap).length > 0 ? pkgMap : undefined }
+        );
+      }, msg.formData as unknown as Record<string, unknown>); break;
 
       case 'deleteSelected':
         await this.deleteSelected(msg.tab, msg.names);
         break;
 
       case 'exportCsv':  await this.exportCsv(); break;
-      case 'exportHtml': await this.exportHtmlReport(false); break;
-      case 'exportPdf':  await this.exportHtmlReport(true); break;
+      case 'exportHtml': await this.exportHtmlReport(); break;
+      case 'exportPdf':  await this.exportPdf(); break;
+      case 'exportMd':   await this.exportMarkdown(); break;
 
       case 'moduleAction':
         await this.handleModuleAction(msg.action, msg.moduleName);
@@ -261,25 +278,28 @@ export class AssetsPanel implements vscode.Disposable {
     action: 'create' | 'editPackages',
     name?: string
   ): Promise<void> {
-    const { account } = this.state;
     if (action === 'create') {
-      const request = await promptForRuntimeEnvironmentCreate(account.location);
-      if (!request) { return; }
-      await this.azure.createRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, request);
-      this.outputChannel.appendLine(`[assets] Created runtime environment "${request.name}" in ${account.name}`);
-    } else {
-      if (!name) { return; }
+      this.state.form = { open: true, mode: 'new', tab: 'runtimeEnvironments', loading: false };
+      this.render();
+      return;
+    }
+
+    // editPackages — still uses QuickPick/InputBox flow
+    if (!name) { return; }
+    const { account } = this.state;
+    try {
       const existing = await this.azure.getRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, name);
       const defaultPackages = await promptForDefaultPackages(existing.defaultPackages);
       if (defaultPackages === undefined) { return; }
       await this.azure.updateRuntimeEnvironmentDefaultPackages(
-        account.subscriptionId,
-        account.resourceGroupName,
-        account.name,
-        existing.name,
-        defaultPackages
+        account.subscriptionId, account.resourceGroupName, account.name, existing.name, defaultPackages
       );
       this.outputChannel.appendLine(`[assets] Updated runtime environment "${existing.name}" in ${account.name}`);
+      void vscode.window.showInformationMessage(`Runtime environment "${existing.name}" updated.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.outputChannel.appendLine(`[assets] Failed to update runtime environment: ${msg}`);
+      void vscode.window.showErrorMessage(`Failed to update runtime environment: ${msg}`);
     }
 
     await this.reloadTab('runtimeEnvironments');
@@ -357,7 +377,7 @@ export class AssetsPanel implements vscode.Disposable {
 
   // ── Submit helper ─────────────────────────────────────────────────────────
 
-  private async runSubmit(tab: AssetTab, operation: () => Promise<void>): Promise<void> {
+  private async runSubmit(tab: AssetTab, operation: () => Promise<void>, prefill?: Record<string, unknown>): Promise<void> {
     const { form, account } = this.state;
     this.state.form = { ...form, loading: true, error: undefined };
     this.render();
@@ -368,7 +388,7 @@ export class AssetsPanel implements vscode.Disposable {
       await this.reloadTab(tab);
       this.render();
     } catch (e) {
-      this.state.form = { ...this.state.form, loading: false, error: errMsg(e) };
+      this.state.form = { ...this.state.form, loading: false, error: errMsg(e), prefill: prefill ?? form.prefill };
       this.render();
     }
   }
@@ -411,16 +431,37 @@ export class AssetsPanel implements vscode.Disposable {
 
   // ── Export ────────────────────────────────────────────────────────────────
 
+  private getExtensionVersion(): string {
+    try {
+      const ext = vscode.extensions.getExtension('ScoutmanPt.azure-runbook-workbench');
+      if (ext?.packageJSON?.version) { return ext.packageJSON.version as string; }
+    } catch {}
+    return 'unknown';
+  }
+
+  private getDefaultExportDir(): string | undefined {
+    try {
+      const folders = vscode.workspace.workspaceFolders;
+      if (folders && folders.length > 0) { return folders[0].uri.fsPath; }
+    } catch {}
+    return undefined;
+  }
+
   private async exportCsv(): Promise<void> {
     const { account, variables, credentials, connections, certificates } = this.state;
+    const version = this.getExtensionVersion();
     const lines: string[] = [
+      `# Azure Runbooks Workbench v${version} by @scoutmanpt at https://www.pdragon.co`,
+      '',
       '=== Variables ===', VARIABLES_CSV_HEADER, ...variablesCsvRows(variables.items), '',
       '=== Credentials ===', CREDENTIALS_CSV_HEADER, ...credentialsCsvRows(credentials.items), '',
       '=== Connections ===', CONNECTIONS_CSV_HEADER, ...connectionsCsvRows(connections.items), '',
       '=== Certificates ===', CERTIFICATES_CSV_HEADER, ...certificatesCsvRows(certificates.items),
     ];
+    const defaultDir = this.getDefaultExportDir();
+    const defaultPath = defaultDir ? `${defaultDir}/${account.name}-assets.csv` : `${account.name}-assets.csv`;
     const uri = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file(`${account.name}-assets.csv`),
+      defaultUri: vscode.Uri.file(defaultPath),
       filters: { 'CSV Files': ['csv'] },
     });
     if (!uri) { return; }
@@ -428,25 +469,96 @@ export class AssetsPanel implements vscode.Disposable {
     void vscode.window.showInformationMessage(`Assets exported to ${uri.fsPath}`);
   }
 
-  private async exportHtmlReport(openForPrint: boolean): Promise<void> {
+  private async exportHtmlReport(): Promise<void> {
     const { account } = this.state;
+    const version = this.getExtensionVersion();
+    const defaultDir = this.getDefaultExportDir();
+    const defaultPath = defaultDir ? `${defaultDir}/${account.name}-assets.html` : `${account.name}-assets.html`;
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: `Exporting assets for ${account.name}…`, cancellable: false },
       async () => {
-        const html = generateStandaloneHtml(account, this.state);
+        const html = generateStandaloneHtml(account, this.state, version);
         const uri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file(`${account.name}-assets.html`),
+          defaultUri: vscode.Uri.file(defaultPath),
           filters: { 'HTML Files': ['html'] },
         });
         if (!uri) { return; }
         await vscode.workspace.fs.writeFile(uri, Buffer.from(html, 'utf-8'));
-        if (openForPrint) {
-          await vscode.env.openExternal(uri);
-        } else {
-          void vscode.window.showInformationMessage(`Assets exported to ${uri.fsPath}`);
-        }
+        void vscode.window.showInformationMessage(`Assets exported to ${uri.fsPath}`);
       }
     );
+  }
+
+  private async exportPdf(): Promise<void> {
+    const { account } = this.state;
+    const version = this.getExtensionVersion();
+    const defaultDir = this.getDefaultExportDir();
+    const defaultPath = defaultDir
+      ? `${defaultDir}/${account.name}-assets-print.html`
+      : `${account.name}-assets-print.html`;
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(defaultPath),
+      filters: { 'HTML Files': ['html'] },
+      title: 'Save print-ready HTML (then open in browser → Print → Save as PDF)',
+    });
+    if (!uri) { return; }
+    const html = generateStandaloneHtml(account, this.state, version);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(html, 'utf-8'));
+    void vscode.window.showInformationMessage(
+      `Saved to ${uri.fsPath} — open it in your browser and use Print → Save as PDF.`,
+      'Open'
+    ).then(choice => {
+      if (choice === 'Open') { void vscode.env.openExternal(uri); }
+    });
+  }
+
+  private async exportMarkdown(): Promise<void> {
+    const { account, variables, credentials, connections, certificates } = this.state;
+    const version = this.getExtensionVersion();
+    const now = new Date().toLocaleString();
+
+    const mdTable = (headers: string[], rows: string[][]): string => {
+      const head = `| ${headers.join(' | ')} |`;
+      const sep  = `| ${headers.map(() => '---').join(' | ')} |`;
+      const body = rows.map(r => `| ${r.map(c => c.replace(/\|/g, '\\|')).join(' | ')} |`).join('\n');
+      return `${head}\n${sep}\n${body}`;
+    };
+
+    const lines = [
+      `# Assets – ${account.name}`,
+      ``,
+      `${account.resourceGroupName} · ${account.subscriptionName ?? account.subscriptionId} · Exported ${now}`,
+      ``,
+      `## Variables`,
+      ``,
+      mdTable(VARIABLES_EXPORT_HEADERS,    variablesExportRows(variables.items)),
+      ``,
+      `## Credentials`,
+      ``,
+      mdTable(CREDENTIALS_EXPORT_HEADERS,  credentialsExportRows(credentials.items)),
+      ``,
+      `## Connections`,
+      ``,
+      mdTable(CONNECTIONS_EXPORT_HEADERS,  connectionsExportRows(connections.items)),
+      ``,
+      `## Certificates`,
+      ``,
+      mdTable(CERTIFICATES_EXPORT_HEADERS, certificatesExportRows(certificates.items)),
+      ``,
+      `---`,
+      ``,
+      `*Azure Runbooks Workbench v${version} by @scoutmanpt — [www.pdragon.co](https://www.pdragon.co)*`,
+    ];
+
+    const defaultDir = this.getDefaultExportDir();
+    const defaultPath = defaultDir ? `${defaultDir}/${account.name}-assets.md` : `${account.name}-assets.md`;
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(defaultPath),
+      filters: { 'Markdown Files': ['md'] },
+    });
+    if (!uri) { return; }
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(lines.join('\n'), 'utf-8'));
+    void vscode.window.showInformationMessage(`Assets exported to ${uri.fsPath}`);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -604,7 +716,7 @@ function renderHtml(state: AssetsPanelState): string {
       <button class="btn btn-ghost" id="btn-refresh">&#8635; Refresh</button>
       <button class="btn btn-ghost" id="btn-export-csv">&#8595; CSV</button>
       <button class="btn btn-ghost" id="btn-export-html">&#8595; HTML</button>
-      <button class="btn btn-ghost" id="btn-export-pdf">&#8595; PDF</button>
+      <button class="btn btn-ghost" id="btn-export-md">&#8595; MD</button>
     </div>
   </div>
 </div>
@@ -637,6 +749,7 @@ ${formHtml}
   document.getElementById('btn-refresh')?.addEventListener('click', () => vscode.postMessage({ type: 'refresh' }));
   document.getElementById('btn-export-csv')?.addEventListener('click', () => vscode.postMessage({ type: 'exportCsv' }));
   document.getElementById('btn-export-html')?.addEventListener('click', () => vscode.postMessage({ type: 'exportHtml' }));
+  document.getElementById('btn-export-md')?.addEventListener('click', () => vscode.postMessage({ type: 'exportMd' }));
   document.getElementById('btn-export-pdf')?.addEventListener('click', () => vscode.postMessage({ type: 'exportPdf' }));
 
   // Overlay close
@@ -692,6 +805,7 @@ ${formHtml}
   ${CREDENTIALS_FORM_SCRIPT}
   ${CONNECTIONS_FORM_SCRIPT}
   ${CERTIFICATES_FORM_SCRIPT}
+  ${RUNTIME_ENVIRONMENTS_FORM_SCRIPT}
   ${MODULES_SCRIPT}
 </script>
 </body>
@@ -724,9 +838,12 @@ function renderForm(state: AssetsPanelState): string {
     } else if (form.tab === 'connections') {
       body = renderConnectionsFormBody(p, isEdit);
       submitBtn = renderConnectionsSubmitButton(isEdit);
-    } else {
+    } else if (form.tab === 'certificates') {
       body = renderCertificatesFormBody(p, isEdit);
       submitBtn = renderCertificatesSubmitButton(isEdit);
+    } else if (form.tab === 'runtimeEnvironments') {
+      body = renderRuntimeEnvironmentsFormBody(p);
+      submitBtn = renderRuntimeEnvironmentsSubmitButton();
     }
   }
 
@@ -749,7 +866,7 @@ function renderForm(state: AssetsPanelState): string {
 
 // ── Standalone HTML export ────────────────────────────────────────────────────
 
-function generateStandaloneHtml(account: AzureAutomationAccount, state: AssetsPanelState): string {
+function generateStandaloneHtml(account: AzureAutomationAccount, state: AssetsPanelState, version: string): string {
   const now = new Date().toLocaleString();
   const TS = 'border-collapse:collapse;width:100%;margin-bottom:32px;font-family:sans-serif;font-size:13px';
   const TH = 'background:#f0f0f0;border:1px solid #ccc;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase';
@@ -775,5 +892,10 @@ ${makeTable('Variables',    VARIABLES_EXPORT_HEADERS,    variablesExportRows(sta
 ${makeTable('Credentials',  CREDENTIALS_EXPORT_HEADERS,  credentialsExportRows(state.credentials.items))}
 ${makeTable('Connections',  CONNECTIONS_EXPORT_HEADERS,  connectionsExportRows(state.connections.items))}
 ${makeTable('Certificates', CERTIFICATES_EXPORT_HEADERS, certificatesExportRows(state.certificates.items))}
+<hr style="margin-top:32px;border:none;border-top:1px solid #ddd" />
+<p style="font-size:11px;color:#999;font-family:sans-serif;margin-top:8px">
+  Azure Runbooks Workbench v${esc(version)} by @scoutmanpt &mdash;
+  <a href="https://www.pdragon.co" style="color:#999">www.pdragon.co</a>
+</p>
 </body></html>`;
 }

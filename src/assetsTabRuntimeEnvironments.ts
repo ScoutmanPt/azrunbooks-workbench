@@ -1,6 +1,8 @@
 import type { AzureAutomationAccount, AzureService } from './azureService';
 import type { TabState, RuntimeEnvironmentItem } from './assetsShared';
-import { esc, renderTabToolbar } from './assetsShared';
+import { esc, renderTabToolbar, SUPPORTED_RUNTIME_VERSIONS } from './assetsShared';
+
+const RUNTIME_VERSIONS = SUPPORTED_RUNTIME_VERSIONS;
 
 export async function loadRuntimeEnvironments(
   azure: AzureService,
@@ -71,3 +73,130 @@ export function renderRuntimeEnvironmentsPane(state: TabState<RuntimeEnvironment
       ${rows}
     </div>`;
 }
+
+// ── Form rendering ────────────────────────────────────────────────────────────
+
+export function renderRuntimeEnvironmentsFormBody(prefill: Record<string, unknown>): string {
+  const name     = esc(String(prefill['name']        ?? ''));
+  const language = esc(String(prefill['language']    ?? ''));
+  const version  = esc(String(prefill['version']     ?? ''));
+  const desc     = esc(String(prefill['description'] ?? ''));
+
+  // Normalise package map from either source (prefill arrays on error-restore, or Record on edit)
+  let pkgMap: Record<string, string> = {};
+  if (prefill['defaultPackages'] && !Array.isArray(prefill['defaultPackages'])) {
+    pkgMap = prefill['defaultPackages'] as Record<string, string>;
+  } else if (Array.isArray(prefill['packageKeys'])) {
+    const keys = prefill['packageKeys'] as string[];
+    const vers = Array.isArray(prefill['packageVersions']) ? prefill['packageVersions'] as string[] : [];
+    keys.forEach((k, i) => { if (k) { pkgMap[k] = vers[i] ?? ''; } });
+  }
+
+  const allLanguages = Object.keys(RUNTIME_VERSIONS);
+
+  // Render version options for the currently selected language (or all, hidden)
+  const versionSections = allLanguages.map(lang => {
+    const versions = RUNTIME_VERSIONS[lang];
+    return `<div id="ver-opts-${lang}" class="ver-opts"${language !== lang ? ' style="display:none"' : ''}>
+      <select class="form-input" id="f-version">
+        <option value="" disabled ${version === '' ? 'selected' : ''}>Select version…</option>
+        ${versions.map(v => `<option value="${esc(v)}"${version === v ? ' selected' : ''}>${esc(v)}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+
+  const pkgRows = Object.entries(pkgMap).map(([k, v]) => `
+    <div class="field-row">
+      <input class="form-input pkg-name" value="${esc(k)}" placeholder="Package name" />
+      <input class="form-input pkg-ver"  value="${esc(v)}" placeholder="Version" />
+      <button class="field-row-btn" type="button" title="Remove">&times;</button>
+    </div>`).join('');
+
+  const emptyPkgRow = `
+    <div class="field-row">
+      <input class="form-input pkg-name" placeholder="Package name" />
+      <input class="form-input pkg-ver"  placeholder="Version" />
+      <button class="field-row-btn" type="button" title="Remove">&times;</button>
+    </div>`;
+
+  return `
+    <div class="form-field">
+      <label class="form-label required">Name</label>
+      <input class="form-input" id="f-name" type="text" value="${name}" placeholder="RuntimeEnvironmentName" />
+    </div>
+    <div class="form-field">
+      <label class="form-label required">Language</label>
+      <select class="form-input" id="f-language">
+        <option value="" disabled ${language === '' ? 'selected' : ''}>Select language…</option>
+        ${allLanguages.map(l => `<option value="${esc(l)}"${language === l ? ' selected' : ''}>${esc(l)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-field">
+      <label class="form-label required">Runtime Version</label>
+      <div id="version-container">${versionSections}</div>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="f-description" type="text" value="${desc}" placeholder="Optional description" />
+    </div>
+    <div class="form-field">
+      <label class="form-label">Default Packages</label>
+      <div class="field-rows" id="pkg-rows-container">${Object.keys(pkgMap).length > 0 ? pkgRows : emptyPkgRow}</div>
+      <button class="add-field-btn" id="add-pkg-row" type="button">+ Add package</button>
+    </div>`;
+}
+
+export function renderRuntimeEnvironmentsSubmitButton(): string {
+  return `<button class="btn btn-primary" id="f-submit-runtime">Create</button>`;
+}
+
+export const RUNTIME_ENVIRONMENTS_FORM_SCRIPT = `
+  (function() {
+    const RUNTIME_VERSIONS = ${JSON.stringify(RUNTIME_VERSIONS)};
+
+    // ── Language → version sections ──────────────────────────────────────────
+    const langSelect = document.getElementById('f-language');
+    if (langSelect) {
+      langSelect.addEventListener('change', () => {
+        const lang = langSelect.value;
+        document.querySelectorAll('.ver-opts').forEach(el => { el.style.display = 'none'; });
+        const section = document.getElementById('ver-opts-' + lang);
+        if (section) { section.style.display = ''; }
+      });
+    }
+
+    // ── Add / remove package rows ────────────────────────────────────────────
+    const addPkgBtn = document.getElementById('add-pkg-row');
+    if (addPkgBtn) {
+      addPkgBtn.addEventListener('click', () => {
+        const container = document.getElementById('pkg-rows-container');
+        if (!container) return;
+        const row = document.createElement('div');
+        row.className = 'field-row';
+        row.innerHTML = '<input class="form-input pkg-name" placeholder="Package name" />'
+          + '<input class="form-input pkg-ver" placeholder="Version" />'
+          + '<button class="field-row-btn" type="button" title="Remove">&times;</button>';
+        row.querySelector('.field-row-btn')?.addEventListener('click', () => row.remove());
+        container.appendChild(row);
+      });
+      document.querySelectorAll('#pkg-rows-container .field-row-btn').forEach(btn => {
+        btn.addEventListener('click', () => btn.closest('.field-row')?.remove());
+      });
+    }
+
+    // ── Submit ───────────────────────────────────────────────────────────────
+    document.getElementById('f-submit-runtime')?.addEventListener('click', () => {
+      const versionEl = document.querySelector('#version-container .ver-opts:not([style*="none"]) #f-version')
+        || document.getElementById('f-version');
+      const pkgNames = Array.from(document.querySelectorAll('#pkg-rows-container .pkg-name')).map(el => el.value);
+      const pkgVers  = Array.from(document.querySelectorAll('#pkg-rows-container .pkg-ver')).map(el => el.value);
+      vscode.postMessage({ type: 'submitRuntimeEnvironmentForm', formData: {
+        name:            document.getElementById('f-name')?.value        || '',
+        language:        langSelect?.value                               || '',
+        version:         versionEl?.value                                || '',
+        description:     document.getElementById('f-description')?.value || '',
+        packageKeys:     pkgNames,
+        packageVersions: pkgVers,
+      }});
+    });
+  })();`;

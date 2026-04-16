@@ -1,52 +1,58 @@
+<#
+.SYNOPSIS
+  Deploys PowerShell/Python modules to an Azure Automation Account via the REST API.
+  Reads the module list from <PipelineRoot>/modules.<AccountName>.json.
+
+.PARAMETER AccountName     Name of the Automation Account.
+.PARAMETER ResourceGroup   Resource group containing the account.
+.PARAMETER SubscriptionId  Azure subscription ID.
+.PARAMETER PipelineRoot    Folder that contains the modules manifest.
+#>
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$AccountName,
-
-  [Parameter(Mandatory = $true)]
-  [string]$ResourceGroup,
-
-  [Parameter(Mandatory = $true)]
-  [string]$SubscriptionId,
-
-  [Parameter(Mandatory = $true)]
-  [string]$PipelineRoot
+  [Parameter(Mandatory)] [string] $AccountName,
+  [Parameter(Mandatory)] [string] $ResourceGroup,
+  [Parameter(Mandatory)] [string] $SubscriptionId,
+  [Parameter(Mandatory)] [string] $PipelineRoot
 )
 
-$modulesTemplate = Join-Path $PipelineRoot 'automation-modules.bicep'
 $modulesManifest = Join-Path $PipelineRoot ("modules.{0}.json" -f $AccountName)
-$tempRoot = $env:RUNNER_TEMP
-if (-not $tempRoot) {
-  $tempRoot = $env:AGENT_TEMPDIRECTORY
-}
-if (-not $tempRoot) {
-  $tempRoot = [System.IO.Path]::GetTempPath()
-}
 
 if (-not (Test-Path $modulesManifest)) {
-  Write-Host "No module manifest found at $modulesManifest. Skipping module deployment."
+  Write-Host "No module manifest at $modulesManifest — skipping."
   exit 0
 }
 
-$moduleManifest = Get-Content $modulesManifest -Raw | ConvertFrom-Json
-$modules = @($moduleManifest.modules)
+$manifest = Get-Content $modulesManifest -Raw | ConvertFrom-Json
+$modules  = @($manifest.modules)
 if ($modules.Count -eq 0) {
-  Write-Host "Module manifest is empty. Skipping module deployment."
+  Write-Host "Module manifest is empty — skipping."
   exit 0
 }
 
-$modulesParamsPath = Join-Path $tempRoot ("automation-modules.{0}.parameters.json" -f $AccountName)
-$modulesParameters = @{
-  '$schema' = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
-  contentVersion = '1.0.0.0'
-  parameters = @{
-    automationAccountName = @{ value = $AccountName }
-    modules = @{ value = $modules }
+$baseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup" +
+           "/providers/Microsoft.Automation/automationAccounts/$AccountName"
+$apiVer  = 'api-version=2023-11-01'
+
+foreach ($mod in $modules) {
+  Write-Host "-> Module: $($mod.name)  ($($mod.uri))"
+
+  $contentLink = @{ uri = [string]$mod.uri }
+  if ($mod.version) { $contentLink.version = [string]$mod.version }
+
+  $body = @{
+    name       = $mod.name
+    properties = @{ contentLink = $contentLink }
+  } | ConvertTo-Json -Depth 5 -Compress
+
+  az rest --method put `
+    --url "$baseUrl/modules/$($mod.name)?$apiVer" `
+    --body $body `
+    --headers 'Content-Type=application/json' `
+    --subscription $SubscriptionId
+
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to deploy module '$($mod.name)'"
   }
 }
 
-$modulesParameters | ConvertTo-Json -Depth 20 | Set-Content -Path $modulesParamsPath -Encoding utf8
-az deployment group create `
-  --resource-group $ResourceGroup `
-  --template-file $modulesTemplate `
-  --parameters "@$modulesParamsPath" `
-  --subscription $SubscriptionId
+Write-Host "Module deployment complete."

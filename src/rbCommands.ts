@@ -4,6 +4,7 @@ import * as path from 'path';
 import type { AzureAutomationAccount, AzureService, RunbookSummary, RuntimeEnvironmentCreateRequest } from './azureService';
 import { AccountSectionItem, AutomationAccountItem, RunbookItem, RuntimeEnvironmentItem, SubscriptionItem } from './accountsTreeProvider';
 import type { AccountsTreeProvider } from './accountsTreeProvider';
+import { SUPPORTED_RUNTIME_VERSIONS } from './assetsShared';
 import { runbookTypeForFilePath } from './workspaceManager';
 import type { WorkspaceManager } from './workspaceManager';
 import type { CreateRunbookPrefill, RunbookCommands } from './runbookCommands';
@@ -318,13 +319,9 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<Runt
   );
   if (!language) { return; }
 
-  const version = await vscode.window.showInputBox({
+  const versionOptions = (SUPPORTED_RUNTIME_VERSIONS[language.value] ?? []).map(v => ({ label: v, value: v }));
+  const version = await vscode.window.showQuickPick(versionOptions, {
     title: `Runtime Version - ${name}`,
-    prompt: language.value === 'PowerShell'
-      ? 'Example: 7.2'
-      : 'Example: 3.10',
-    ignoreFocusOut: true,
-    validateInput: value => value.trim() ? null : 'Version is required.',
   });
   if (!version) { return; }
 
@@ -342,7 +339,7 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<Runt
     name,
     location,
     language: language.value,
-    version: version.trim(),
+    version: version.value,
     description: description.trim() || undefined,
     defaultPackages: Object.keys(defaultPackages).length > 0 ? defaultPackages : undefined,
   };
@@ -373,9 +370,16 @@ async function manageRuntimeEnvironments(
   if (picked.value === '__create') {
     const request = await promptForRuntimeEnvironmentCreate(account.location);
     if (!request) { return false; }
-    await azure.createRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, request);
-    outputChannel.appendLine(`[runtime-environment] Created ${request.name} in ${account.name}`);
-    void vscode.window.showInformationMessage(`Created Runtime Environment "${request.name}".`);
+    try {
+      await azure.createRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, request);
+      outputChannel.appendLine(`[runtime-environment] Created ${request.name} in ${account.name}`);
+      void vscode.window.showInformationMessage(`Created Runtime Environment "${request.name}".`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      outputChannel.appendLine(`[runtime-environment] Failed to create ${request.name}: ${msg}`);
+      void vscode.window.showErrorMessage(`Failed to create runtime environment: ${msg}`);
+      return false;
+    }
     return true;
   }
 

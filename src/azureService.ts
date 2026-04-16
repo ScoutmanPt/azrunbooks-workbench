@@ -1596,13 +1596,14 @@ export class AzureService {
 
   async graphListServicePrincipalAppRoleAssignments(
     servicePrincipalId: string
-  ): Promise<Array<{ resourceId: string; appRoleId: string }>> {
-    const data = await this.graphFetch<{ value?: Array<{ resourceId?: string; appRoleId?: string }> }>(
-      `/servicePrincipals/${servicePrincipalId}/appRoleAssignments?$select=resourceId,appRoleId`
+  ): Promise<Array<{ id: string; resourceId: string; appRoleId: string }>> {
+    const data = await this.graphFetch<{ value?: Array<{ id?: string; resourceId?: string; appRoleId?: string }> }>(
+      `/servicePrincipals/${servicePrincipalId}/appRoleAssignments?$select=id,resourceId,appRoleId`
     );
     return (data.value ?? [])
-      .filter(assignment => assignment.resourceId && assignment.appRoleId)
+      .filter(assignment => assignment.id && assignment.resourceId && assignment.appRoleId)
       .map(assignment => ({
+        id: assignment.id ?? '',
         resourceId: assignment.resourceId ?? '',
         appRoleId: assignment.appRoleId ?? '',
       }));
@@ -1641,7 +1642,7 @@ export class AzureService {
 
   async graphDelete(path: string): Promise<void> {
     const endpoint = this.auth.getGraphEndpoint().replace(/\/$/, '');
-    const token = await this.auth.getAccessToken();
+    const token = await this.auth.getGraphToken();
     const res = await fetch(`${endpoint}/v1.0${path}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },

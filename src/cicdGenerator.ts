@@ -5,7 +5,7 @@ import { sanitizeName, type LinkedAccount, type WorkspaceManager } from './works
 
 type PipelinePlatform = 'github' | 'azdo' | 'gitlab';
 type PipelineChoice = PipelinePlatform | 'both' | 'all';
-type DeploymentScope = 'full' | 'assets' | 'modulesRunbooks' | 'runbooks';
+type DeploymentScope = 'full' | 'infrastructure' | 'assets' | 'modulesRunbooks' | 'runbooks';
 
 type CiCdGeneratorPrivate = {
   buildGitHubActionsYaml(account: LinkedAccount, scope?: DeploymentScope): string;
@@ -39,7 +39,7 @@ export class CiCdGenerator {
       [
         { label: '$(github) GitHub Actions', value: 'github' as PipelineChoice },
         { label: '$(azure-devops) Azure DevOps', value: 'azdo' as PipelineChoice },
-        { label: '$(gitlab) GitLab', value: 'gitlab' as PipelineChoice },
+        { label: 'GitLab', value: 'gitlab' as PipelineChoice },
         { label: 'GitHub Actions + Azure DevOps', value: 'both' as PipelineChoice },
         { label: 'GitHub Actions + Azure DevOps + GitLab', value: 'all' as PipelineChoice },
       ],
@@ -49,10 +49,11 @@ export class CiCdGenerator {
 
     const scope = await vscode.window.showQuickPick(
       [
-        { label: 'Full Automation Account', value: 'full' as DeploymentScope, description: 'All assets + modules + runbooks' },
-        { label: 'Automation Account Assets', value: 'assets' as DeploymentScope, description: 'Variables, connections, certificates, and related assets' },
-        { label: 'Modules + Runbooks', value: 'modulesRunbooks' as DeploymentScope },
-        { label: 'Runbooks', value: 'runbooks' as DeploymentScope },
+        { label: 'Full Automation Account', value: 'full' as DeploymentScope, description: 'Provision account (Bicep) + deploy modules, runbooks, and assets (PowerShell)' },
+        { label: 'Automation Account Infrastructure', value: 'infrastructure' as DeploymentScope, description: 'Provision the Automation Account via Bicep only' },
+        { label: 'Automation Account Assets', value: 'assets' as DeploymentScope, description: 'Variables, credentials, connections, and certificates' },
+        { label: 'Modules + Runbooks', value: 'modulesRunbooks' as DeploymentScope, description: 'Import modules then upload and publish runbooks' },
+        { label: 'Runbooks', value: 'runbooks' as DeploymentScope, description: 'Upload and publish runbook scripts only' },
       ],
       { title: 'Deployment Scope' }
     );
@@ -172,16 +173,13 @@ export class CiCdGenerator {
       'github-actions.yml.template',
       'azure-devops.yml.template',
       'gitlab-ci.yml.template',
-      'automation-assets.bicep',
-      'automation-modules.bicep',
+      'automation-account.bicep',
       'modules.manifest.json.template',
       'certificates.manifest.json.template',
+      'scripts/deploy-infrastructure.ps1',
       'scripts/deploy-runbooks.ps1',
       'scripts/deploy-assets.ps1',
       'scripts/deploy-modules.ps1',
-      'scripts/deploy-runbooks.sh',
-      'scripts/deploy-assets.py',
-      'scripts/deploy-modules.py',
     ];
     for (const fileName of files) {
       const source = path.join(this.extensionPath, 'resources', 'pipeline-templates', fileName);
@@ -222,39 +220,40 @@ export class CiCdGenerator {
   }
 
   private scopeDefinition(account: LinkedAccount, scope: DeploymentScope): ScopeDefinition {
-    const accountPath = `aaccounts/${account.accountName}`;
-    const pipelineRoot = './.settings/mocks/pipelines';
+    const accountPath   = `aaccounts/${account.accountName}`;
+    const pipelineRoot  = './.settings/mocks/pipelines';
     const runbookFilters = [
       `- '${accountPath}/*.ps1'`,
       `- '${accountPath}/*.py'`,
     ];
     const pipelineFilter = `- '.settings/mocks/pipelines/**'`;
-    const assetsFilter = `- 'local.settings.json'`;
+    const assetsFilter   = `- 'local.settings.json'`;
 
+    // ── Runbooks ──────────────────────────────────────────────────────────────
     const githubRunbookScript = [
-      `& "${pipelineRoot}/scripts/deploy-runbooks.ps1" \\`,
-      `  -AccountName $accountName \\`,
-      `  -ResourceGroup $resourceGroup \\`,
-      `  -SubscriptionId $subscriptionId \\`,
-      `  -AccountPath "./${accountPath}"`,
+      `& "${pipelineRoot}/scripts/deploy-runbooks.ps1" \``,
+      `  -AccountName $accountName \``,
+      `  -ResourceGroup $resourceGroup \``,
+      `  -SubscriptionId $subscriptionId \``,
+      `  -AccountPath "./aaccounts/$accountName"`,
     ];
     const azdoRunbookScript = [
       `& "${pipelineRoot}/scripts/deploy-runbooks.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
-      `  -AccountPath "./${accountPath}"`,
+      `  -AccountPath "./aaccounts/$(automationAccountName)"`,
     ];
     const gitlabRunbookScript = [
-      `- chmod +x "${pipelineRoot}/scripts/deploy-runbooks.sh"`,
-      `- "${pipelineRoot}/scripts/deploy-runbooks.sh" "$AUTOMATION_ACCOUNT_NAME" "$RESOURCE_GROUP" "$SUBSCRIPTION_ID" "./${accountPath}"`,
+      `- pwsh -File "${pipelineRoot}/scripts/deploy-runbooks.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -AccountPath "./aaccounts/$AUTOMATION_ACCOUNT_NAME"`,
     ];
 
+    // ── Modules ───────────────────────────────────────────────────────────────
     const githubModulesScript = [
-      `& "${pipelineRoot}/scripts/deploy-modules.ps1" \\`,
-      `  -AccountName $accountName \\`,
-      `  -ResourceGroup $resourceGroup \\`,
-      `  -SubscriptionId $subscriptionId \\`,
+      `& "${pipelineRoot}/scripts/deploy-modules.ps1" \``,
+      `  -AccountName $accountName \``,
+      `  -ResourceGroup $resourceGroup \``,
+      `  -SubscriptionId $subscriptionId \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoModulesScript = [
@@ -265,27 +264,47 @@ export class CiCdGenerator {
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabModulesScript = [
-      `- python3 "${pipelineRoot}/scripts/deploy-modules.py" "$AUTOMATION_ACCOUNT_NAME" "$RESOURCE_GROUP" "$SUBSCRIPTION_ID" "${pipelineRoot}"`,
+      `- pwsh -File "${pipelineRoot}/scripts/deploy-modules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
     ];
 
+    // ── Assets ────────────────────────────────────────────────────────────────
     const githubAssetsScript = [
-      `& "${pipelineRoot}/scripts/deploy-assets.ps1" \\`,
-      `  -AccountName $accountName \\`,
-      `  -ResourceGroup $resourceGroup \\`,
-      `  -SubscriptionId $subscriptionId \\`,
-      `  -PipelineRoot "${pipelineRoot}" \\`,
-      `  -LocalSettingsPath "./local.settings.json"`,
+      `& "${pipelineRoot}/scripts/deploy-assets.ps1" \``,
+      `  -AccountName $accountName \``,
+      `  -ResourceGroup $resourceGroup \``,
+      `  -SubscriptionId $subscriptionId \``,
+      `  -LocalSettingsPath "./local.settings.json" \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoAssetsScript = [
       `& "${pipelineRoot}/scripts/deploy-assets.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
-      `  -PipelineRoot "${pipelineRoot}" \``,
-      `  -LocalSettingsPath "./local.settings.json"`,
+      `  -LocalSettingsPath "./local.settings.json" \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabAssetsScript = [
-      `- python3 "${pipelineRoot}/scripts/deploy-assets.py" "$AUTOMATION_ACCOUNT_NAME" "$RESOURCE_GROUP" "$SUBSCRIPTION_ID" "${pipelineRoot}" "./local.settings.json"`,
+      `- pwsh -File "${pipelineRoot}/scripts/deploy-assets.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -LocalSettingsPath "./local.settings.json" -PipelineRoot "${pipelineRoot}"`,
+    ];
+
+    // ── Infrastructure (Bicep) ────────────────────────────────────────────────
+    const githubInfraScript = [
+      `& "${pipelineRoot}/scripts/deploy-infrastructure.ps1" \``,
+      `  -AccountName $accountName \``,
+      `  -ResourceGroup $resourceGroup \``,
+      `  -SubscriptionId $subscriptionId \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
+    ];
+    const azdoInfraScript = [
+      `& "${pipelineRoot}/scripts/deploy-infrastructure.ps1" \``,
+      `  -AccountName '$(automationAccountName)' \``,
+      `  -ResourceGroup '$(resourceGroup)' \``,
+      `  -SubscriptionId '$(subscriptionId)' \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
+    ];
+    const gitlabInfraScript = [
+      `- pwsh -File "${pipelineRoot}/scripts/deploy-infrastructure.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
     ];
 
     switch (scope) {
@@ -293,10 +312,35 @@ export class CiCdGenerator {
         return {
           label: 'Full Automation Account',
           pathFilters: [...runbookFilters, pipelineFilter, assetsFilter],
-          githubScript: [...githubRunbookScript, '', ...githubModulesScript, '', ...githubAssetsScript],
-          azdoScript: [...azdoRunbookScript, '', ...azdoModulesScript, '', ...azdoAssetsScript],
-          gitlabScript: [...gitlabRunbookScript, ...gitlabModulesScript, ...gitlabAssetsScript],
+          githubScript: [
+            ...githubInfraScript,   '',
+            ...githubModulesScript, '',
+            ...githubRunbookScript, '',
+            ...githubAssetsScript,
+          ],
+          azdoScript: [
+            ...azdoInfraScript,   '',
+            ...azdoModulesScript, '',
+            ...azdoRunbookScript, '',
+            ...azdoAssetsScript,
+          ],
+          gitlabScript: [
+            ...gitlabInfraScript,
+            ...gitlabModulesScript,
+            ...gitlabRunbookScript,
+            ...gitlabAssetsScript,
+          ],
         };
+
+      case 'infrastructure':
+        return {
+          label: 'Automation Account Infrastructure',
+          pathFilters: [pipelineFilter],
+          githubScript: githubInfraScript,
+          azdoScript: azdoInfraScript,
+          gitlabScript: gitlabInfraScript,
+        };
+
       case 'assets':
         return {
           label: 'Automation Account Assets',
@@ -305,14 +349,16 @@ export class CiCdGenerator {
           azdoScript: azdoAssetsScript,
           gitlabScript: gitlabAssetsScript,
         };
+
       case 'modulesRunbooks':
         return {
           label: 'Modules + Runbooks',
           pathFilters: [...runbookFilters, pipelineFilter],
-          githubScript: [...githubRunbookScript, '', ...githubModulesScript],
-          azdoScript: [...azdoRunbookScript, '', ...azdoModulesScript],
-          gitlabScript: [...gitlabRunbookScript, ...gitlabModulesScript],
+          githubScript: [...githubModulesScript, '', ...githubRunbookScript],
+          azdoScript:   [...azdoModulesScript,   '', ...azdoRunbookScript],
+          gitlabScript: [...gitlabModulesScript,     ...gitlabRunbookScript],
         };
+
       case 'runbooks':
       default:
         return {

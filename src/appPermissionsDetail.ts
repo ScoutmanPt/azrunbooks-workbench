@@ -31,7 +31,7 @@ export function renderDetailView(app: SelectedAppState): string {
 
   const isManagedIdentity = app.kind === 'servicePrincipal' && app.servicePrincipalType === 'ManagedIdentity';
   const canAdd = app.kind === 'application' || Boolean(app.linkedAppObjectId) || isManagedIdentity;
-  const canRemove = app.kind === 'application' || Boolean(app.linkedAppObjectId);
+  const canRemove = app.kind === 'application' || Boolean(app.linkedAppObjectId) || isManagedIdentity;
   const addBtn  = canAdd
     ? `<button class="btn btn-primary" id="btn-add-permission">+ Add a permission</button>`
     : `<span class="form-hint" style="padding:0 4px">Read-only: no app registration found in this tenant for this service principal.</span>`;
@@ -43,9 +43,14 @@ export function renderDetailView(app: SelectedAppState): string {
     : '';
 
   const permsByResource = groupByResource(app.permissions);
+  const totalCount = app.permissions.length;
   const gridHtml = permsByResource.length === 0
     ? `<div class="empty-state">${isManagedIdentity ? 'No permissions are currently granted to this managed identity.' : 'No configured permissions.'}</div>`
     : permsByResource.map(g => renderResourceGroup(g, canRemove)).join('');
+
+  const deleteAllBtn = canRemove && totalCount > 0
+    ? `<button class="btn btn-danger" id="btn-delete-all-permissions">Delete all</button>`
+    : '';
 
   return `
     <div class="detail-header">
@@ -57,7 +62,10 @@ export function renderDetailView(app: SelectedAppState): string {
     ${saveError}
     <div class="detail-toolbar">
       <div class="detail-toolbar-title">Configured permissions</div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="search-input" id="perm-search" type="text" placeholder="Search permissions…" style="width:200px" />
+        <button class="btn btn-ghost" id="btn-refresh-permissions">&#8635; Refresh</button>
+        ${deleteAllBtn}
         ${addBtn}
       </div>
     </div>
@@ -68,11 +76,11 @@ export function renderDetailView(app: SelectedAppState): string {
     </div>
     <div class="perm-grid">
       <div class="perm-grid-header">
+        <span class="cell cell-action"></span>
         <span class="cell cell-api">API / Permission name</span>
         <span class="cell cell-type">Type</span>
         <span class="cell cell-desc">Description</span>
         <span class="cell cell-admin">Admin consent req.</span>
-        <span class="cell cell-action"></span>
       </div>
       ${gridHtml}
     </div>`;
@@ -123,11 +131,11 @@ function renderPermRow(p: ConfiguredPermission, canEdit: boolean): string {
     : '';
   return `
     <div class="perm-row">
+      <span class="cell cell-action">${deleteBtn}</span>
       <span class="cell cell-api perm-name">${esc(p.value)}</span>
       <span class="cell cell-type perm-type">${typeLabel}</span>
       <span class="cell cell-desc perm-desc">${esc(p.description)}</span>
       <span class="cell cell-admin">${adminLabel}</span>
-      <span class="cell cell-action">${deleteBtn}</span>
     </div>`;
 }
 
@@ -141,6 +149,33 @@ export const DETAIL_SCRIPT = `
   document.getElementById('btn-add-permission')?.addEventListener('click', () =>
     vscode.postMessage({ type: 'showAddPanel' })
   );
+
+  document.getElementById('btn-refresh-permissions')?.addEventListener('click', () =>
+    vscode.postMessage({ type: 'refresh' })
+  );
+
+  document.getElementById('btn-delete-all-permissions')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'removeAllPermissions' });
+  });
+
+  // Search / filter
+  document.getElementById('perm-search')?.addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.perm-row').forEach(row => {
+      const text = row.textContent?.toLowerCase() ?? '';
+      row.style.display = q === '' || text.includes(q) ? '' : 'none';
+    });
+    // Hide resource headers when all their rows are hidden
+    document.querySelectorAll('.perm-resource-header').forEach(header => {
+      let next = header.nextElementSibling;
+      let anyVisible = false;
+      while (next && next.classList.contains('perm-row')) {
+        if (next.style.display !== 'none') { anyVisible = true; break; }
+        next = next.nextElementSibling;
+      }
+      header.style.display = anyVisible ? '' : 'none';
+    });
+  });
 
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('[data-remove-resource]');
@@ -163,10 +198,10 @@ export const DETAIL_CSS = `
   .detail-toolbar-title { font-size:14px; font-weight:600; }
   .perm-description { font-size:12px; color:var(--muted); padding:0 16px 12px; line-height:1.5; max-width:1100px; }
   .perm-grid { flex:1; overflow-y:auto; padding:0 16px 16px; }
-  .perm-grid-header { display:grid; grid-template-columns:minmax(240px, 2fr) 120px minmax(320px, 3fr) 150px 44px; position:sticky; top:0; background:var(--surface); border-bottom:1px solid var(--border); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); min-height:40px; align-items:center; margin:0 -16px; padding:0 16px; z-index:1; column-gap:16px; }
+  .perm-grid-header { display:grid; grid-template-columns:44px minmax(240px, 2fr) 120px minmax(320px, 3fr) 150px; position:sticky; top:0; background:var(--surface); border-bottom:1px solid var(--border); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); min-height:40px; align-items:center; margin:0 -16px; padding:0 16px; z-index:1; column-gap:16px; }
   .perm-resource-header { padding:14px 0 6px; font-weight:600; font-size:13px; color:var(--accent); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; }
   .perm-resource-name {}
-  .perm-row { display:grid; grid-template-columns:minmax(240px, 2fr) 120px minmax(320px, 3fr) 150px 44px; align-items:start; min-height:48px; border-bottom:1px solid var(--border); padding:10px 0; column-gap:16px; }
+  .perm-row { display:grid; grid-template-columns:44px minmax(240px, 2fr) 120px minmax(320px, 3fr) 150px; align-items:start; min-height:48px; border-bottom:1px solid var(--border); padding:10px 0; column-gap:16px; }
   .perm-row:hover { background:var(--hover); }
   .perm-name { font-weight:600; padding-left:0; }
   .perm-desc { font-size:12px; color:var(--muted); line-height:1.45; white-space:normal; }

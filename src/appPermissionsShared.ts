@@ -121,6 +121,7 @@ export type AppPermissionsMessage =
   | { type: 'selectApp'; id: string; appId: string; displayName: string; kind: 'application' | 'servicePrincipal'; servicePrincipalType?: string }
   | { type: 'backToSearch' }
   | { type: 'removePermission'; resourceAppId: string; permissionId: string }
+  | { type: 'removeAllPermissions' }
   | { type: 'showAddPanel' }
   | { type: 'closeAddPanel' }
   | { type: 'addPanelSwitchTab'; tab: KnownApi }

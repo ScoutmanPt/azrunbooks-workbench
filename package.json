@@ -2,7 +2,7 @@
   "name": "azure-runbook-workbench",
   "displayName": "Azure Runbook Workbench",
   "description": "A modern Azure Automation Runbook developer experience - workspace-first, MSAL auth, local execution with asset mocking, and CI/CD generation.",
-  "version": "0.6.0",
+  "version": "0.13.0",
   "publisher": "ScoutmanPt",
   "icon": "resources/icon.png",
   "engines": {
@@ -154,7 +154,7 @@
       },
       {
         "command": "runbookWorkbench.viewAssets",
-        "title": "Manage Account Resources",
+        "title": "Manage Automation Account Resources",
         "category": "Runbook Workbench",
         "icon": "$(symbol-variable)"
       },
@@ -190,13 +190,13 @@
       },
       {
         "command": "runbookWorkbench.runLocal",
-        "title": "Run Locally (with Asset Mocks)",
+        "title": "Run Locally",
         "category": "Runbook Workbench",
         "icon": "$(terminal-powershell)"
       },
       {
         "command": "runbookWorkbench.debugLocal",
-        "title": "Debug Locally (with Asset Mocks)",
+        "title": "Debug Locally",
         "category": "Runbook Workbench",
         "icon": "$(debug-alt)"
       },
@@ -261,7 +261,7 @@
       },
       {
         "command": "runbookWorkbench.manageAssets",
-        "title": "Manage Account Resources",
+        "title": "Manage AutomationAccount Resources",
         "category": "Runbook Workbench"
       },
       {

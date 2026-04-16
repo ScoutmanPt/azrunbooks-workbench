@@ -89,14 +89,16 @@ export type AssetsPanelMessage =
   | { type: 'showNewForm'; tab: AssetTab }
   | { type: 'showEditForm'; tab: AssetTab; name: string }
   | { type: 'cancelForm' }
-  | { type: 'submitVariableForm';    formData: VariableFormData }
-  | { type: 'submitCredentialForm';  formData: CredentialFormData }
-  | { type: 'submitConnectionForm';  formData: ConnectionFormData }
-  | { type: 'submitCertificateForm'; formData: CertificateFormData }
+  | { type: 'submitVariableForm';            formData: VariableFormData }
+  | { type: 'submitCredentialForm';          formData: CredentialFormData }
+  | { type: 'submitConnectionForm';          formData: ConnectionFormData }
+  | { type: 'submitCertificateForm';         formData: CertificateFormData }
+  | { type: 'submitRuntimeEnvironmentForm';  formData: RuntimeEnvironmentFormData }
   | { type: 'deleteSelected'; tab: AssetTab; names: string[] }
   | { type: 'exportCsv' }
   | { type: 'exportHtml' }
   | { type: 'exportPdf' }
+  | { type: 'exportMd' }
   | { type: 'moduleAction'; action: 'installGallery' | 'importLocal' | 'deployToAzure'; moduleName?: string }
   | { type: 'runtimeEnvironmentAction'; action: 'create' | 'editPackages'; name?: string };
 
@@ -131,6 +133,22 @@ export interface CertificateFormData {
   isExportable: boolean;
   description: string;
 }
+
+export interface RuntimeEnvironmentFormData {
+  name: string;
+  language: string;
+  version: string;
+  description: string;
+  packageKeys: string[];
+  packageVersions: string[];
+}
+
+// ── Supported runtime versions (single source of truth) ──────────────────────
+
+export const SUPPORTED_RUNTIME_VERSIONS: Record<string, string[]> = {
+  PowerShell: ['7.6', '7.4', '7.2', '5.1'],
+  Python:     ['3.10', '3.8'],
+};
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 

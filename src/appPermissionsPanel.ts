@@ -190,6 +190,10 @@ export class AppPermissionsPanel {
         await this._removePermission(msg.resourceAppId, msg.permissionId);
         break;
 
+      case 'removeAllPermissions':
+        await this._removeAllPermissions();
+        break;
+
       case 'refresh':
         if (this._state.selectedApp) {
           await this._reloadSelectedApp();
@@ -602,10 +606,11 @@ export class AppPermissionsPanel {
         if (!resourceServicePrincipal?.id) {
           throw new Error(`Resource service principal not found for ${resourceAppId}.`);
         }
-        const assignments = await this._azure.graphGetServicePrincipalAppRoleAssignments(app.id, resourceServicePrincipal.id);
-        const assignment = assignments.find(item => item.appRoleId === permissionId);
+        // Use the full assignment list (includes id) and filter client-side — avoids unreliable $filter queries
+        const allAssignments = await this._azure.graphListServicePrincipalAppRoleAssignments(app.id);
+        const assignment = allAssignments.find(a => a.resourceId === resourceServicePrincipal.id && a.appRoleId === permissionId);
         if (!assignment) {
-          throw new Error('Managed identity permission assignment was not found.');
+          throw new Error('Managed identity permission assignment was not found. Try refreshing the permissions list.');
         }
         await this._azure.graphDeleteAppRoleAssignment(app.id, assignment.id);
         await this._reloadSelectedApp();
@@ -622,6 +627,46 @@ export class AppPermissionsPanel {
       })).filter(r => r.resourceAccess.length > 0);
 
       await this._azure.graphPatchApplicationPermissions(effectiveId, updated);
+      await this._reloadSelectedApp();
+    } catch (e) {
+      this._state = { ...this._state, selectedApp: { ...this._state.selectedApp!, saving: false, saveError: errMsg(e) } };
+      this._render();
+    }
+  }
+
+  // ── Remove all permissions ──────────────────────────────────────────────────
+
+  private async _removeAllPermissions(): Promise<void> {
+    if (!this._state?.selectedApp) { return; }
+    const selectedApp = this._state.selectedApp;
+    if (selectedApp.permissions.length === 0) { return; }
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Remove all ${selectedApp.permissions.length} configured permission(s) from "${selectedApp.displayName}"?`,
+      { modal: true },
+      'Remove all'
+    );
+    if (confirm !== 'Remove all') { return; }
+
+    const isManagedIdentity = selectedApp.kind === 'servicePrincipal' && selectedApp.servicePrincipalType === 'ManagedIdentity';
+    const effectiveId = selectedApp.kind === 'application'
+      ? selectedApp.id
+      : selectedApp.linkedAppObjectId;
+    if (!effectiveId && !isManagedIdentity) { return; }
+
+    this._state = { ...this._state, selectedApp: { ...selectedApp, saving: true, saveError: undefined } };
+    this._render();
+
+    try {
+      if (isManagedIdentity) {
+        // Fetch all assignments once (includes id), then delete each by id
+        const allAssignments = await this._azure.graphListServicePrincipalAppRoleAssignments(selectedApp.id);
+        for (const assignment of allAssignments) {
+          await this._azure.graphDeleteAppRoleAssignment(selectedApp.id, assignment.id);
+        }
+      } else {
+        await this._azure.graphPatchApplicationPermissions(effectiveId!, []);
+      }
       await this._reloadSelectedApp();
     } catch (e) {
       this._state = { ...this._state, selectedApp: { ...this._state.selectedApp!, saving: false, saveError: errMsg(e) } };
