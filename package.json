@@ -581,43 +581,35 @@
       "runbookWorkbench.explorerAccountMenu": [
         {
           "command": "runbookWorkbench.createRunbook",
-          "group": "runbookWorkbench_manage@0"
-        },
-        {
-          "command": "runbookWorkbench.viewJobs",
-          "group": "runbookWorkbench_manage@2"
-        },
-        {
-          "command": "runbookWorkbench.viewSchedules",
-          "group": "runbookWorkbench_manage@3"
+          "group": "runbookWorkbench_1_create@0"
         },
         {
           "command": "runbookWorkbench.viewAssets",
-          "group": "runbookWorkbench_manage@3b"
+          "group": "runbookWorkbench_2_manage@0"
         },
         {
           "command": "runbookWorkbench.manageRuntimeEnvironments",
-          "group": "runbookWorkbench_manage@3c"
-        },
-        {
-          "command": "runbookWorkbench.generateCiCd",
-          "group": "runbookWorkbench_manage@4"
-        },
-        {
-          "command": "runbookWorkbench.installModuleForLocalDebug",
-          "group": "runbookWorkbench_manage@5"
-        },
-        {
-          "command": "runbookWorkbench.deployLocalModuleToAzure",
-          "group": "runbookWorkbench_manage@5b"
+          "group": "runbookWorkbench_2_manage@1"
         },
         {
           "command": "runbookWorkbench.viewAppPermissions",
-          "group": "runbookWorkbench_manage@6"
+          "group": "runbookWorkbench_2_manage@2"
+        },
+        {
+          "command": "runbookWorkbench.viewJobs",
+          "group": "runbookWorkbench_3_view@0"
+        },
+        {
+          "command": "runbookWorkbench.viewSchedules",
+          "group": "runbookWorkbench_3_view@1"
+        },
+        {
+          "command": "runbookWorkbench.generateCiCd",
+          "group": "runbookWorkbench_4_pipeline@0"
         },
         {
           "command": "runbookWorkbench.syncAccount",
-          "group": "runbookWorkbench_manage@7"
+          "group": "runbookWorkbench_4_pipeline@1"
         },
         {
           "command": "runbookWorkbench.showInPortal",
