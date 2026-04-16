@@ -19,7 +19,7 @@ param(
   [string] $Sku = 'Basic'
 )
 
-$template = Join-Path $PipelineRoot 'automation-account.bicep'
+$template = Join-Path $PipelineRoot 'bicep' 'automation-account.bicep'
 if (-not (Test-Path $template)) {
   throw "Bicep template not found: $template"
 }

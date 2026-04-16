@@ -23,7 +23,7 @@ Get-ChildItem -Path $AccountPath -File | Where-Object { $_.Extension -in '.ps1',
     --automation-account-name $AccountName `
     --resource-group $ResourceGroup `
     --name $runbookName `
-    --content $_.FullName `
+    --content "@$($_.FullName)" `
     --subscription $SubscriptionId
   az automation runbook publish `
     --automation-account-name $AccountName `

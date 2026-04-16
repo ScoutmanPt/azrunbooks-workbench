@@ -2,16 +2,11 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { sanitizeName, type LinkedAccount, type WorkspaceManager } from './workspaceManager';
+import type { AzureService } from './azureService';
 
 type PipelinePlatform = 'github' | 'azdo' | 'gitlab';
 type PipelineChoice = PipelinePlatform | 'both' | 'all';
 type DeploymentScope = 'full' | 'infrastructure' | 'assets' | 'modulesRunbooks' | 'runbooks';
-
-type CiCdGeneratorPrivate = {
-  buildGitHubActionsYaml(account: LinkedAccount, scope?: DeploymentScope): string;
-  buildAzureDevOpsYaml(account: LinkedAccount, scope?: DeploymentScope): string;
-  buildGitLabYaml(account: LinkedAccount, scope?: DeploymentScope): string;
-};
 
 type ScopeDefinition = {
   readonly label: string;
@@ -25,6 +20,7 @@ export class CiCdGenerator {
   constructor(
     private readonly workspace: WorkspaceManager,
     private readonly outputChannel: vscode.OutputChannel,
+    private readonly azure: AzureService,
     private readonly extensionPath?: string
   ) {}
 
@@ -66,6 +62,8 @@ export class CiCdGenerator {
     }
 
     this.ensurePipelineTemplates();
+    this.copyDeployAssets(rootPath, account.accountName);
+    await this.exportSchedulesManifest(rootPath, account);
     const selectedPlatforms = this.resolvePlatforms(choice.value);
 
     for (const platform of selectedPlatforms) {
@@ -119,18 +117,6 @@ export class CiCdGenerator {
     return `.gitlab-ci-${sanitizeName(accountName)}.yml`;
   }
 
-  private buildGitHubActionsYaml(account: LinkedAccount, scope: DeploymentScope = 'runbooks'): string {
-    return this.renderPipeline('github', account, scope);
-  }
-
-  private buildAzureDevOpsYaml(account: LinkedAccount, scope: DeploymentScope = 'runbooks'): string {
-    return this.renderPipeline('azdo', account, scope);
-  }
-
-  private buildGitLabYaml(account: LinkedAccount, scope: DeploymentScope = 'runbooks'): string {
-    return this.renderPipeline('gitlab', account, scope);
-  }
-
   private renderPipeline(platform: PipelinePlatform, account: LinkedAccount, scope: DeploymentScope): string {
     const definition = this.scopeDefinition(account, scope);
     const template = this.readTemplate(platform);
@@ -150,13 +136,13 @@ export class CiCdGenerator {
         ? 'azure-devops.yml.template'
         : 'gitlab-ci.yml.template';
 
-    const workspaceTemplate = path.join(this.workspace.pipelineTemplatesDir, fileName);
+    const workspaceTemplate = path.join(this.workspace.pipelineTemplatesDir, 'yml', fileName);
     if (fs.existsSync(workspaceTemplate)) {
       return fs.readFileSync(workspaceTemplate, 'utf8');
     }
 
     if (this.extensionPath) {
-      const builtInTemplate = path.join(this.extensionPath, 'resources', 'pipeline-templates', fileName);
+      const builtInTemplate = path.join(this.extensionPath, 'resources', 'pipeline-templates', 'yml', fileName);
       if (fs.existsSync(builtInTemplate)) {
         return fs.readFileSync(builtInTemplate, 'utf8');
       }
@@ -166,28 +152,51 @@ export class CiCdGenerator {
   }
 
   private ensurePipelineTemplates(): void {
-    fs.mkdirSync(this.workspace.pipelineTemplatesDir, { recursive: true });
     if (!this.extensionPath) { return; }
-
-    const files = [
-      'github-actions.yml.template',
-      'azure-devops.yml.template',
-      'gitlab-ci.yml.template',
-      'automation-account.bicep',
-      'modules.manifest.json.template',
-      'certificates.manifest.json.template',
-      'scripts/deploy-infrastructure.ps1',
-      'scripts/deploy-runbooks.ps1',
-      'scripts/deploy-assets.ps1',
-      'scripts/deploy-modules.ps1',
-    ];
-    for (const fileName of files) {
+    // Only copy yml templates — used by readTemplate() and customisable by the user.
+    for (const fileName of ['yml/github-actions.yml.template', 'yml/azure-devops.yml.template', 'yml/gitlab-ci.yml.template']) {
       const source = path.join(this.extensionPath, 'resources', 'pipeline-templates', fileName);
       const target = path.join(this.workspace.pipelineTemplatesDir, fileName);
       if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.copyFileSync(source, target);
     }
+  }
+
+  private copyDeployAssets(rootPath: string, accountName: string): void {
+    if (!this.extensionPath) { return; }
+    const sourceDir = path.join(this.extensionPath, 'resources', 'pipeline-templates');
+    const targetDir = path.join(rootPath, '.pipelines', accountName);
+
+    const scripts = [
+      'scripts/deploy-runbooks.ps1',
+      'scripts/deploy-assets.ps1',
+      'scripts/deploy-modules.ps1',
+      'scripts/deploy-schedules.ps1',
+      'scripts/deploy-infrastructure.ps1',
+      'bicep/automation-account.bicep',
+    ];
+    for (const fileName of scripts) {
+      const source = path.join(sourceDir, fileName);
+      const target = path.join(targetDir, fileName);
+      if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+    }
+
+    // Manifest starters — only written once so the user can customise them.
+    const manifests: Array<{ src: string; dst: string }> = [
+      { src: 'modules.manifest.json.template',      dst: `modules.${accountName}.json` },
+      { src: 'certificates.manifest.json.template', dst: `certificates.${accountName}.json` },
+    ];
+    for (const { src, dst } of manifests) {
+      const source = path.join(sourceDir, src);
+      const target = path.join(targetDir, dst);
+      if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
+      fs.copyFileSync(source, target);
+    }
+
+    this.outputChannel.appendLine(`[cicd] deploy assets → .pipelines/${accountName}/`);
   }
 
   private pathIndent(platform: PipelinePlatform): number {
@@ -221,7 +230,7 @@ export class CiCdGenerator {
 
   private scopeDefinition(account: LinkedAccount, scope: DeploymentScope): ScopeDefinition {
     const accountPath   = `aaccounts/${account.accountName}`;
-    const pipelineRoot  = './.settings/mocks/pipelines';
+    const pipelineRoot  = `./.pipelines/${account.accountName}`;
     const runbookFilters = [
       `- '${accountPath}/*.ps1'`,
       `- '${accountPath}/*.py'`,
@@ -288,6 +297,25 @@ export class CiCdGenerator {
       `- pwsh -File "${pipelineRoot}/scripts/deploy-assets.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -LocalSettingsPath "./local.settings.json" -PipelineRoot "${pipelineRoot}"`,
     ];
 
+    // ── Schedules ─────────────────────────────────────────────────────────────
+    const githubSchedulesScript = [
+      `& "${pipelineRoot}/scripts/deploy-schedules.ps1" \``,
+      `  -AccountName $accountName \``,
+      `  -ResourceGroup $resourceGroup \``,
+      `  -SubscriptionId $subscriptionId \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
+    ];
+    const azdoSchedulesScript = [
+      `& "${pipelineRoot}/scripts/deploy-schedules.ps1" \``,
+      `  -AccountName '$(automationAccountName)' \``,
+      `  -ResourceGroup '$(resourceGroup)' \``,
+      `  -SubscriptionId '$(subscriptionId)' \``,
+      `  -PipelineRoot "${pipelineRoot}"`,
+    ];
+    const gitlabSchedulesScript = [
+      `- pwsh -File "${pipelineRoot}/scripts/deploy-schedules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
+    ];
+
     // ── Infrastructure (Bicep) ────────────────────────────────────────────────
     const githubInfraScript = [
       `& "${pipelineRoot}/scripts/deploy-infrastructure.ps1" \``,
@@ -313,22 +341,25 @@ export class CiCdGenerator {
           label: 'Full Automation Account',
           pathFilters: [...runbookFilters, pipelineFilter, assetsFilter],
           githubScript: [
-            ...githubInfraScript,   '',
-            ...githubModulesScript, '',
-            ...githubRunbookScript, '',
-            ...githubAssetsScript,
+            ...githubInfraScript,     '',
+            ...githubModulesScript,   '',
+            ...githubRunbookScript,   '',
+            ...githubAssetsScript,    '',
+            ...githubSchedulesScript,
           ],
           azdoScript: [
-            ...azdoInfraScript,   '',
-            ...azdoModulesScript, '',
-            ...azdoRunbookScript, '',
-            ...azdoAssetsScript,
+            ...azdoInfraScript,     '',
+            ...azdoModulesScript,   '',
+            ...azdoRunbookScript,   '',
+            ...azdoAssetsScript,    '',
+            ...azdoSchedulesScript,
           ],
           gitlabScript: [
             ...gitlabInfraScript,
             ...gitlabModulesScript,
             ...gitlabRunbookScript,
             ...gitlabAssetsScript,
+            ...gitlabSchedulesScript,
           ],
         };
 
@@ -345,9 +376,9 @@ export class CiCdGenerator {
         return {
           label: 'Automation Account Assets',
           pathFilters: [assetsFilter, pipelineFilter],
-          githubScript: githubAssetsScript,
-          azdoScript: azdoAssetsScript,
-          gitlabScript: gitlabAssetsScript,
+          githubScript: [...githubAssetsScript, '', ...githubSchedulesScript],
+          azdoScript:   [...azdoAssetsScript,   '', ...azdoSchedulesScript],
+          gitlabScript: [...gitlabAssetsScript,     ...gitlabSchedulesScript],
         };
 
       case 'modulesRunbooks':
@@ -370,6 +401,51 @@ export class CiCdGenerator {
         };
     }
   }
+
+  private async exportSchedulesManifest(rootPath: string, account: LinkedAccount): Promise<void> {
+    const targetDir = path.join(rootPath, '.pipelines', account.accountName);
+    const targetFile = path.join(targetDir, `schedules.${account.accountName}.json`);
+
+    try {
+      const [schedules, jobSchedules] = await Promise.all([
+        this.azure.listSchedules(account.subscriptionId, account.resourceGroup, account.accountName),
+        this.azure.listJobSchedules(account.subscriptionId, account.resourceGroup, account.accountName),
+      ]);
+
+      const manifest = {
+        schedules: schedules.map(s => {
+          const entry: Record<string, unknown> = {
+            name: s.name,
+            frequency: s.frequency,
+            startTime: s.startTime,
+            isEnabled: s.isEnabled,
+            timeZone: s.timeZone ?? 'UTC',
+          };
+          if (s.interval)          { entry.interval          = s.interval; }
+          if (s.expiryTime)        { entry.expiryTime        = s.expiryTime; }
+          if (s.description)       { entry.description       = s.description; }
+          if (s.advancedSchedule)  { entry.advancedSchedule  = s.advancedSchedule; }
+          return entry;
+        }),
+        jobSchedules: jobSchedules.map(js => {
+          const entry: Record<string, unknown> = {
+            scheduleName: js.scheduleName,
+            runbookName:  js.runbookName,
+          };
+          if (js.runOn)      { entry.runOn      = js.runOn; }
+          if (js.parameters) { entry.parameters = js.parameters; }
+          return entry;
+        }),
+      };
+
+      fs.mkdirSync(targetDir, { recursive: true });
+      fs.writeFileSync(targetFile, JSON.stringify(manifest, null, 2), 'utf8');
+      this.outputChannel.appendLine(`[cicd] schedules exported → ${targetFile} (${schedules.length} schedules, ${jobSchedules.length} links)`);
+    } catch (e) {
+      this.outputChannel.appendLine(`[cicd] schedule export failed: ${e instanceof Error ? e.message : String(e)}`);
+      void vscode.window.showWarningMessage(`Could not export schedules: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 }
 
-export type { CiCdGeneratorPrivate, DeploymentScope };
+export type { DeploymentScope };

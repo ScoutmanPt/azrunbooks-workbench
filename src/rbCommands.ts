@@ -1755,7 +1755,10 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
 
     reg('runbookWorkbench.startJob', async (item: unknown) => {
       const runbook = await resolveRunbook(item, azure, workspace);
-      if (!runbook) { return; }
+      if (!runbook) {
+        void vscode.window.showErrorMessage('Right-click a published runbook in the Accounts tree to start a job.');
+        return;
+      }
       await commands.startJob(runbook);
     }),
 

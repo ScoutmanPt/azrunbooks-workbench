@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const runner                   = new LocalRunner(workspace, outputChannel, runbookSessionsView, context.extensionPath, context.extension.packageJSON.version as string);
   const assetsPanel              = new AssetsPanel(context.extensionUri, azure, outputChannel, auth, runner, workspace);
   const appPermissionsPanel      = new AppPermissionsPanel(context.extensionUri, azure, auth, outputChannel, workspace);
-  const cicd                     = new CiCdGenerator(workspace, outputChannel, context.extensionPath);
+  const cicd                     = new CiCdGenerator(workspace, outputChannel, azure, context.extensionPath);
   const workspaceRunbooksProvider = new WorkspaceRunbooksTreeProvider(
     workspace,
     colorRegistry,
