@@ -1,4 +1,4 @@
-# Azure Runbook Workbench - Manual Test Plan
+# Azure Runbooks Workbench - Manual Test Plan
 
 Run these in the Extension Development Host (`F5` in VS Code).
 

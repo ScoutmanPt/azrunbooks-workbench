@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks through the first-time setup of Azure Runbook Workbench in a local repository.
+This guide walks through the first-time setup of Azure Runbooks Workbench in a local repository.
 
 ## Goal
 
@@ -15,7 +15,7 @@ By the end of this guide you will have:
 ## Prerequisites
 
 - Visual Studio Code
-- the Azure Runbook Workbench extension installed
+- the Azure Runbooks Workbench extension installed
 - access to at least one Azure subscription with Azure Automation Accounts
 - for some flows, Azure CLI signed in with `az login`
 
@@ -31,7 +31,7 @@ The extension creates a predictable structure under the current workspace root. 
 
 ## Step 2. Sign In to Azure
 
-1. Open the Azure Runbook Workbench activity bar view.
+1. Open the Azure Runbooks Workbench activity bar view.
 2. Run `Sign in to Azure`.
 3. Complete the Microsoft sign-in flow.
 4. If needed, run `Select Azure Cloud` and choose the right cloud environment.

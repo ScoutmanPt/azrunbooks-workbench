@@ -1,10 +1,10 @@
 ![Workflow Banner](assets/workflow-banner.svg)
 
-# Azure Runbook Workbench - Workflow
+# Azure Runbooks Workbench - Workflow
 
 ## Installation And First Launch
 
-After the extension is installed, it contributes an activity-bar container named `Azure Runbook Workbench` and a bottom panel named `Runbook Sessions`. The main side views are:
+After the extension is installed, it contributes an activity-bar container named `Azure Runbooks Workbench` and a bottom panel named `Runbook Sessions`. The main side views are:
 
 - `Automation Accounts` - Azure-first browsing of subscriptions, accounts, runbooks, and account resources
 - `Workspace` - local workspace files and fetched section data

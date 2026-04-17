@@ -1,8 +1,8 @@
 {
   "name": "azure-runbook-workbench",
-  "displayName": "Azure Runbook Workbench",
+  "displayName": "Azure Runbooks Workbench",
   "description": "A modern Azure Automation Runbook developer experience - workspace-first, MSAL auth, local execution with asset mocking, and CI/CD generation.",
-  "version": "0.18.0",
+  "version": "0.27.0",
   "publisher": "ScoutmanPt",
   "icon": "resources/icon.png",
   "engines": {
@@ -25,22 +25,22 @@
     "submenus": [
       {
         "id": "runbookWorkbench.explorerWorkspaceMenu",
-        "label": "Azure Runbook Workbench"
+        "label": "Azure Runbooks Workbench"
       },
       {
         "id": "runbookWorkbench.explorerAccountMenu",
-        "label": "Azure Runbook Workbench"
+        "label": "Azure Runbooks Workbench"
       },
       {
         "id": "runbookWorkbench.explorerRunbookMenu",
-        "label": "Azure Runbook Workbench"
+        "label": "Azure Runbooks Workbench"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "runbookWorkbench",
-          "title": "Azure Runbook Workbench",
+          "title": "Azure Runbooks Workbench",
           "icon": "resources/automation.svg"
         }
       ],
@@ -260,6 +260,12 @@
         "icon": "$(github-action)"
       },
       {
+        "command": "runbookWorkbench.generateDocumentation",
+        "title": "Generate Documentation",
+        "category": "Runbook Workbench",
+        "icon": "$(book)"
+      },
+      {
         "command": "runbookWorkbench.manageAssets",
         "title": "Manage AutomationAccount Resources",
         "category": "Runbook Workbench"
@@ -436,9 +442,14 @@
           "group": "3_secondary@1"
         },
         {
+          "command": "runbookWorkbench.generateDocumentation",
+          "when": "viewItem == automationAccount",
+          "group": "3b_docs@1"
+        },
+        {
           "command": "runbookWorkbench.installModuleForLocalDebug",
           "when": "viewItem == automationAccount",
-          "group": "3_secondary@2"
+          "group": "3_secondary@3"
         },
         {
           "command": "runbookWorkbench.viewAppPermissions",
@@ -448,7 +459,7 @@
         {
           "command": "runbookWorkbench.syncAccount",
           "when": "viewItem == automationAccount",
-          "group": "4_manage@0"
+          "group": "y_sync@0"
         },
         {
           "command": "runbookWorkbench.showInPortal",
@@ -608,8 +619,12 @@
           "group": "runbookWorkbench_4_pipeline@0"
         },
         {
+          "command": "runbookWorkbench.generateDocumentation",
+          "group": "runbookWorkbench_5_docs@0"
+        },
+        {
           "command": "runbookWorkbench.syncAccount",
-          "group": "runbookWorkbench_4_pipeline@1"
+          "group": "y_sync@0"
         },
         {
           "command": "runbookWorkbench.showInPortal",

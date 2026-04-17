@@ -1,6 +1,6 @@
 ![Architecture Banner](assets/architecture-banner.svg)
 
-# Azure Runbook Workbench - Architecture
+# Azure Runbooks Workbench - Architecture
 
 ## Project Structure
 

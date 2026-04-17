@@ -4,7 +4,7 @@ This guide explains the protected workspace structure and the file explorer rule
 
 ## Why These Rules Exist
 
-Azure Runbook Workbench depends on a predictable folder layout. If key folders are renamed, deleted, or moved arbitrarily, the extension can lose account metadata, cache links, or runbook resolution logic.
+Azure Runbooks Workbench depends on a predictable folder layout. If key folders are renamed, deleted, or moved arbitrarily, the extension can lose account metadata, cache links, or runbook resolution logic.
 
 To reduce accidental breakage, the extension protects specific structural paths.
 

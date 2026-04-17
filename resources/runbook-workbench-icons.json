@@ -269,7 +269,9 @@
     "PnPPowerShellMock.psm1.template": "_file_template",
     "MicrosoftGraphMock.psm1.template": "_file_template",
     "automationstubs.py.template": "_file_template",
-    "Test-Me.ps1": "_file_ps51_azure"
+    "Get-GraphSites.ps1": "_file_ps72_azure",
+    "Get-GraphTenantSites.ps1": "_file_ps72_azure",
+    "Get-PnPSites.ps1": "_file_ps72_azure"
   },
   "folder": "_folder_default",
   "folderExpanded": "_folder_default_open",
@@ -293,7 +295,7 @@
     "Schedules": "_folder_schedules",
     "Published": "_folder_published",
     "Draft": "_folder_draft",
-    "aa-newdemo": "_account_bright_blue"
+    "aa-etension": "_account_bright_blue"
   },
   "folderNamesExpanded": {
     ".vscode": "_folder_default_open",
@@ -315,6 +317,6 @@
     "Schedules": "_folder_schedules_open",
     "Published": "_folder_published_open",
     "Draft": "_folder_draft_open",
-    "aa-newdemo": "_account_bright_blue_open"
+    "aa-etension": "_account_bright_blue_open"
   }
 }

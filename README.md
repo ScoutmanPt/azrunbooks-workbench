@@ -1,15 +1,15 @@
 
 <p align="center">
-  <img src="resources/readme-tech-banner.svg" alt="Azure Runbook Workbench technology banner" width="100%" />
+  <img src="resources/readme-tech-banner.svg" alt="Azure Runbooks Workbench technology banner" width="100%" />
 </p>
 
-# Azure Runbook Workbench
+# Azure Runbooks Workbench
 
 > A modern VS Code extension for Azure Automation runbook development - workspace-first, Azure-connected, and built for local authoring, testing, debugging, and deployment.
 
 ## Overview
 
-Azure Runbook Workbench brings Azure Automation development into Visual Studio Code. Instead of jumping between the Azure portal, scripts, and local folders, you can browse Automation Accounts, fetch runbooks, edit them locally, compare them with deployed versions, upload drafts, publish changes, test locally with mocked assets, and generate CI/CD starter pipelines from one place.
+Azure Runbooks Workbench brings Azure Automation development into Visual Studio Code. Instead of jumping between the Azure portal, scripts, and local folders, you can browse Automation Accounts, fetch runbooks, edit them locally, compare them with deployed versions, upload drafts, publish changes, test locally with mocked assets, and generate CI/CD starter pipelines from one place.
 
 The extension is designed around a workspace-first model. Runbooks live as normal source files in your repo, while Azure remains the system you fetch from, validate against, and deploy to. Account metadata, cache data, mock templates, generated mocks, and isolated PowerShell modules now live under `aaccounts`, so the development experience stays structured and repeatable.
 
@@ -43,7 +43,7 @@ Azure Automation teams often end up with fragmented workflows:
 - deployment handled by separate scripts
 - local debugging either missing or inconsistent
 
-Azure Runbook Workbench closes that gap by treating runbooks like source code while still staying deeply connected to Azure Automation. The goal is to make runbook development feel more like modern software engineering and less like portal-only administration.
+Azure Runbooks Workbench closes that gap by treating runbooks like source code while still staying deeply connected to Azure Automation. The goal is to make runbook development feel more like modern software engineering and less like portal-only administration.
 
 ## Core Workflow
 

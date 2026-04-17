@@ -894,7 +894,7 @@ ${makeTable('Connections',  CONNECTIONS_EXPORT_HEADERS,  connectionsExportRows(s
 ${makeTable('Certificates', CERTIFICATES_EXPORT_HEADERS, certificatesExportRows(state.certificates.items))}
 <hr style="margin-top:32px;border:none;border-top:1px solid #ddd" />
 <p style="font-size:11px;color:#999;font-family:sans-serif;margin-top:8px">
-  Azure Runbooks Workbench v${esc(version)} by @scoutmanpt &mdash;
+  Azure Runbooks Workbench v${esc(version)} by <a href="https://www.linkedin.com/in/rodrigomgpinto/" style="color:#999">@scoutmanpt</a> &mdash;
   <a href="https://www.pdragon.co" style="color:#999">www.pdragon.co</a>
 </p>
 </body></html>`;

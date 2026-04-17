@@ -1,6 +1,6 @@
 ![Testing Banner](assets/testing-banner.svg)
 
-# Azure Runbook Workbench - Testing
+# Azure Runbooks Workbench - Testing
 
 ## Automated Test Commands
 

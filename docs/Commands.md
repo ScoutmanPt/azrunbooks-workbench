@@ -1,6 +1,6 @@
 ![Commands Banner](assets/commands-banner.svg)
 
-# Azure Runbook Workbench - Commands
+# Azure Runbooks Workbench - Commands
 
 ## Command Table
 

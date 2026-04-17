@@ -1,6 +1,6 @@
 # How-To Guides
 
-This folder contains practical step-by-step guides for the main workflows in Azure Runbook Workbench.
+This folder contains practical step-by-step guides for the main workflows in Azure Runbooks Workbench.
 
 Use these guides when you want task-oriented instructions instead of architecture or command references.
 

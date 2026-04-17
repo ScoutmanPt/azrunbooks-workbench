@@ -21,7 +21,8 @@ export class CiCdGenerator {
     private readonly workspace: WorkspaceManager,
     private readonly outputChannel: vscode.OutputChannel,
     private readonly azure: AzureService,
-    private readonly extensionPath?: string
+    private readonly extensionPath?: string,
+    private readonly version: string = 'unknown'
   ) {}
 
   async generate(accountName?: string): Promise<void> {
@@ -94,14 +95,16 @@ export class CiCdGenerator {
     }
   }
 
+  private pipelinesDir(rootPath: string, accountName: string): string {
+    return path.join(rootPath, 'aaccounts', accountName, 'pipelines');
+  }
+
   private pipelineFilePath(rootPath: string, accountName: string, platform: PipelinePlatform): string {
+    const dir = this.pipelinesDir(rootPath, accountName);
     switch (platform) {
-      case 'github':
-        return path.join(rootPath, '.github', 'workflows', this.githubWorkflowFileName(accountName));
-      case 'azdo':
-        return path.join(rootPath, this.azureDevOpsFileName(accountName));
-      case 'gitlab':
-        return path.join(rootPath, this.gitLabFileName(accountName));
+      case 'github': return path.join(dir, this.githubWorkflowFileName(accountName));
+      case 'azdo':   return path.join(dir, this.azureDevOpsFileName(accountName));
+      case 'gitlab': return path.join(dir, this.gitLabFileName(accountName));
     }
   }
 
@@ -117,16 +120,29 @@ export class CiCdGenerator {
     return `.gitlab-ci-${sanitizeName(accountName)}.yml`;
   }
 
+  private pipelineFileHeader(commentChar: string): string {
+    const sep = `${commentChar} ${'='.repeat(63)}`;
+    return [
+      sep,
+      `${commentChar} Azure Runbooks Workbench v${this.version} by @scoutmanpt`,
+      `${commentChar} https://www.pdragon.co`,
+      `${commentChar} Generated: ${new Date().toISOString().slice(0, 10)}`,
+      sep,
+      '',
+    ].join('\n');
+  }
+
   private renderPipeline(platform: PipelinePlatform, account: LinkedAccount, scope: DeploymentScope): string {
     const definition = this.scopeDefinition(account, scope);
     const template = this.readTemplate(platform);
-    return template
+    const rendered = template
       .replaceAll('{{DEPLOY_SCOPE_LABEL}}', definition.label)
       .replaceAll('{{ACCOUNT_NAME}}', account.accountName)
       .replaceAll('{{RESOURCE_GROUP}}', account.resourceGroup)
       .replaceAll('{{SUBSCRIPTION_ID}}', account.subscriptionId)
       .replace('{{PATH_FILTERS}}', this.renderIndentedLines(definition.pathFilters, this.pathIndent(platform)))
       .replace('{{DEPLOY_SCRIPT}}', this.renderIndentedLines(this.scriptLines(platform, definition), this.scriptIndent(platform)));
+    return this.pipelineFileHeader('#') + rendered;
   }
 
   private readTemplate(platform: PipelinePlatform): string {
@@ -159,29 +175,32 @@ export class CiCdGenerator {
       const target = path.join(this.workspace.pipelineTemplatesDir, fileName);
       if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
       fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
+      const content = this.pipelineFileHeader('#') + fs.readFileSync(source, 'utf8');
+      fs.writeFileSync(target, content, 'utf8');
     }
   }
 
   private copyDeployAssets(rootPath: string, accountName: string): void {
     if (!this.extensionPath) { return; }
     const sourceDir = path.join(this.extensionPath, 'resources', 'pipeline-templates');
-    const targetDir = path.join(rootPath, '.pipelines', accountName);
+    const targetDir = this.pipelinesDir(rootPath, accountName);
+    fs.mkdirSync(targetDir, { recursive: true });
 
-    const scripts = [
-      'scripts/deploy-runbooks.ps1',
-      'scripts/deploy-assets.ps1',
-      'scripts/deploy-modules.ps1',
-      'scripts/deploy-schedules.ps1',
-      'scripts/deploy-infrastructure.ps1',
-      'bicep/automation-account.bicep',
+    // Scripts and Bicep — flat in pipelines/, no subdirectories.
+    const scripts: Array<{ src: string; commentChar: string }> = [
+      { src: 'scripts/deploy-runbooks.ps1',       commentChar: '#' },
+      { src: 'scripts/deploy-assets.ps1',         commentChar: '#' },
+      { src: 'scripts/deploy-modules.ps1',        commentChar: '#' },
+      { src: 'scripts/deploy-schedules.ps1',      commentChar: '#' },
+      { src: 'scripts/deploy-infrastructure.ps1', commentChar: '#' },
+      { src: 'bicep/automation-account.bicep',    commentChar: '//' },
     ];
-    for (const fileName of scripts) {
-      const source = path.join(sourceDir, fileName);
-      const target = path.join(targetDir, fileName);
+    for (const { src, commentChar } of scripts) {
+      const source = path.join(sourceDir, src);
+      const target = path.join(targetDir, path.basename(src));
       if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
+      const content = this.pipelineFileHeader(commentChar) + fs.readFileSync(source, 'utf8');
+      fs.writeFileSync(target, content, 'utf8');
     }
 
     // Manifest starters — only written once so the user can customise them.
@@ -196,7 +215,7 @@ export class CiCdGenerator {
       fs.copyFileSync(source, target);
     }
 
-    this.outputChannel.appendLine(`[cicd] deploy assets → .pipelines/${accountName}/`);
+    this.outputChannel.appendLine(`[cicd] deploy assets → aaccounts/${accountName}/pipelines/`);
   }
 
   private pathIndent(platform: PipelinePlatform): number {
@@ -230,55 +249,55 @@ export class CiCdGenerator {
 
   private scopeDefinition(account: LinkedAccount, scope: DeploymentScope): ScopeDefinition {
     const accountPath   = `aaccounts/${account.accountName}`;
-    const pipelineRoot  = `./.pipelines/${account.accountName}`;
+    const pipelineRoot  = `./${accountPath}/pipelines`;
     const runbookFilters = [
       `- '${accountPath}/*.ps1'`,
       `- '${accountPath}/*.py'`,
     ];
-    const pipelineFilter = `- '.settings/mocks/pipelines/**'`;
+    const pipelineFilter = `- '${accountPath}/pipelines/**'`;
     const assetsFilter   = `- 'local.settings.json'`;
 
     // ── Runbooks ──────────────────────────────────────────────────────────────
     const githubRunbookScript = [
-      `& "${pipelineRoot}/scripts/deploy-runbooks.ps1" \``,
+      `& "${pipelineRoot}/deploy-runbooks.ps1" \``,
       `  -AccountName $accountName \``,
       `  -ResourceGroup $resourceGroup \``,
       `  -SubscriptionId $subscriptionId \``,
       `  -AccountPath "./aaccounts/$accountName"`,
     ];
     const azdoRunbookScript = [
-      `& "${pipelineRoot}/scripts/deploy-runbooks.ps1" \``,
+      `& "${pipelineRoot}/deploy-runbooks.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
       `  -AccountPath "./aaccounts/$(automationAccountName)"`,
     ];
     const gitlabRunbookScript = [
-      `- pwsh -File "${pipelineRoot}/scripts/deploy-runbooks.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -AccountPath "./aaccounts/$AUTOMATION_ACCOUNT_NAME"`,
+      `- pwsh -File "${pipelineRoot}/deploy-runbooks.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -AccountPath "./aaccounts/$AUTOMATION_ACCOUNT_NAME"`,
     ];
 
     // ── Modules ───────────────────────────────────────────────────────────────
     const githubModulesScript = [
-      `& "${pipelineRoot}/scripts/deploy-modules.ps1" \``,
+      `& "${pipelineRoot}/deploy-modules.ps1" \``,
       `  -AccountName $accountName \``,
       `  -ResourceGroup $resourceGroup \``,
       `  -SubscriptionId $subscriptionId \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoModulesScript = [
-      `& "${pipelineRoot}/scripts/deploy-modules.ps1" \``,
+      `& "${pipelineRoot}/deploy-modules.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabModulesScript = [
-      `- pwsh -File "${pipelineRoot}/scripts/deploy-modules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
+      `- pwsh -File "${pipelineRoot}/deploy-modules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
     ];
 
     // ── Assets ────────────────────────────────────────────────────────────────
     const githubAssetsScript = [
-      `& "${pipelineRoot}/scripts/deploy-assets.ps1" \``,
+      `& "${pipelineRoot}/deploy-assets.ps1" \``,
       `  -AccountName $accountName \``,
       `  -ResourceGroup $resourceGroup \``,
       `  -SubscriptionId $subscriptionId \``,
@@ -286,7 +305,7 @@ export class CiCdGenerator {
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoAssetsScript = [
-      `& "${pipelineRoot}/scripts/deploy-assets.ps1" \``,
+      `& "${pipelineRoot}/deploy-assets.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
@@ -294,45 +313,45 @@ export class CiCdGenerator {
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabAssetsScript = [
-      `- pwsh -File "${pipelineRoot}/scripts/deploy-assets.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -LocalSettingsPath "./local.settings.json" -PipelineRoot "${pipelineRoot}"`,
+      `- pwsh -File "${pipelineRoot}/deploy-assets.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -LocalSettingsPath "./local.settings.json" -PipelineRoot "${pipelineRoot}"`,
     ];
 
     // ── Schedules ─────────────────────────────────────────────────────────────
     const githubSchedulesScript = [
-      `& "${pipelineRoot}/scripts/deploy-schedules.ps1" \``,
+      `& "${pipelineRoot}/deploy-schedules.ps1" \``,
       `  -AccountName $accountName \``,
       `  -ResourceGroup $resourceGroup \``,
       `  -SubscriptionId $subscriptionId \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoSchedulesScript = [
-      `& "${pipelineRoot}/scripts/deploy-schedules.ps1" \``,
+      `& "${pipelineRoot}/deploy-schedules.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabSchedulesScript = [
-      `- pwsh -File "${pipelineRoot}/scripts/deploy-schedules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
+      `- pwsh -File "${pipelineRoot}/deploy-schedules.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
     ];
 
     // ── Infrastructure (Bicep) ────────────────────────────────────────────────
     const githubInfraScript = [
-      `& "${pipelineRoot}/scripts/deploy-infrastructure.ps1" \``,
+      `& "${pipelineRoot}/deploy-infrastructure.ps1" \``,
       `  -AccountName $accountName \``,
       `  -ResourceGroup $resourceGroup \``,
       `  -SubscriptionId $subscriptionId \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const azdoInfraScript = [
-      `& "${pipelineRoot}/scripts/deploy-infrastructure.ps1" \``,
+      `& "${pipelineRoot}/deploy-infrastructure.ps1" \``,
       `  -AccountName '$(automationAccountName)' \``,
       `  -ResourceGroup '$(resourceGroup)' \``,
       `  -SubscriptionId '$(subscriptionId)' \``,
       `  -PipelineRoot "${pipelineRoot}"`,
     ];
     const gitlabInfraScript = [
-      `- pwsh -File "${pipelineRoot}/scripts/deploy-infrastructure.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
+      `- pwsh -File "${pipelineRoot}/deploy-infrastructure.ps1" -AccountName "$AUTOMATION_ACCOUNT_NAME" -ResourceGroup "$RESOURCE_GROUP" -SubscriptionId "$SUBSCRIPTION_ID" -PipelineRoot "${pipelineRoot}"`,
     ];
 
     switch (scope) {
@@ -403,7 +422,7 @@ export class CiCdGenerator {
   }
 
   private async exportSchedulesManifest(rootPath: string, account: LinkedAccount): Promise<void> {
-    const targetDir = path.join(rootPath, '.pipelines', account.accountName);
+    const targetDir = this.pipelinesDir(rootPath, account.accountName);
     const targetFile = path.join(targetDir, `schedules.${account.accountName}.json`);
 
     try {

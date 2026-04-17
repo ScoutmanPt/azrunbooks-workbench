@@ -23,6 +23,7 @@ import type { JobsPanel } from './jobsPanel';
 import type { SchedulesPanel } from './schedulesPanel';
 import type { AssetsPanel } from './assetsPanel';
 import type { AppPermissionsPanel } from './appPermissionsPanel';
+import type { DocumentationGenerator } from './documentationGenerator';
 import {
   CERTIFICATE_BASE64_KEY,
   CERTIFICATE_DESCRIPTION_KEY,
@@ -54,6 +55,7 @@ export interface RbCommandDeps {
   commands: RunbookCommands;
   runner: LocalRunner;
   cicd: CiCdGenerator;
+  docgen: DocumentationGenerator;
   jobsPanel: JobsPanel;
   schedulesPanel: SchedulesPanel;
   assetsPanel: AssetsPanel;
@@ -1369,7 +1371,7 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     auth, azure, workspace, outputChannel,
     treeProvider, workspaceRunbooksProvider,
     folderDecorations, iconTheme, workspaceProtection,
-    commands, runner, cicd, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
+    commands, runner, cicd, docgen, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
   } = deps;
 
   const reg = (id: string, fn: (...args: unknown[]) => unknown): vscode.Disposable =>
@@ -1982,6 +1984,12 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     reg('runbookWorkbench.generateCiCd', async (_item: unknown) => {
       const accountName = getAccountNameFromExplorerUri(_item);
       await cicd.generate(accountName);
+    }),
+
+    reg('runbookWorkbench.generateDocumentation', async (item: unknown) => {
+      const account = resolveAutomationAccountFromItem(item, workspace);
+      if (!account) { return; }
+      await docgen.generate(account);
     }),
 
     reg('runbookWorkbench.manageAssets', async (item: unknown) => {

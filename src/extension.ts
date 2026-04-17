@@ -9,6 +9,7 @@ import { WorkspaceManager } from './workspaceManager';
 import { RunbookCommands } from './runbookCommands';
 import { LocalRunner } from './localRunner';
 import { CiCdGenerator } from './cicdGenerator';
+import { DocumentationGenerator } from './documentationGenerator';
 import { WorkspaceRunbooksTreeProvider, LinkedTwinDecorationProvider } from './workspaceRunbooksTreeProvider';
 import { RunbookDiffContentProvider, registerRbCommands } from './rbCommands';
 import { RunbookSessionsViewProvider } from './runbookSessionsViewProvider';
@@ -23,7 +24,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const auth          = new AuthManager(context);
   const azure         = new AzureService(auth);
   const workspace     = new WorkspaceManager(context.extensionPath);
-  const outputChannel = vscode.window.createOutputChannel('Azure Runbook Workbench');
+  const outputChannel = vscode.window.createOutputChannel('Azure Runbooks Workbench');
 
   const colorRegistry            = new SubscriptionColorRegistry();
   const treeProvider             = new AccountsTreeProvider(auth, azure, colorRegistry);
@@ -39,7 +40,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const runner                   = new LocalRunner(workspace, outputChannel, runbookSessionsView, context.extensionPath, context.extension.packageJSON.version as string);
   const assetsPanel              = new AssetsPanel(context.extensionUri, azure, outputChannel, auth, runner, workspace);
   const appPermissionsPanel      = new AppPermissionsPanel(context.extensionUri, azure, auth, outputChannel, workspace);
-  const cicd                     = new CiCdGenerator(workspace, outputChannel, azure, context.extensionPath);
+  const cicd                     = new CiCdGenerator(workspace, outputChannel, azure, context.extensionPath, context.extension.packageJSON.version as string);
+  const docgen                   = new DocumentationGenerator(workspace, azure, outputChannel, context.extensionPath, context.extension.packageJSON.version as string);
   const workspaceRunbooksProvider = new WorkspaceRunbooksTreeProvider(
     workspace,
     colorRegistry,
@@ -119,7 +121,7 @@ export function activate(context: vscode.ExtensionContext): void {
       auth, azure, workspace, outputChannel,
       treeProvider, workspaceRunbooksProvider,
       folderDecorations, iconTheme, workspaceProtection,
-      commands, runner, cicd, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
+      commands, runner, cicd, docgen, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
     }),
   );
 }
