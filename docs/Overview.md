@@ -27,7 +27,8 @@ Python runbook support exists for fetch, create, upload, publish, local run, and
 - Debug local runbooks with `F5` or the dedicated debug command.
 - Capture local run and debug output in the `Runbook Sessions` panel.
 - Save PowerShell modules into a workspace-local sandbox at `.settings/cache/modules` for isolated local execution.
-- Generate GitHub Actions or Azure DevOps YAML deployment pipelines.
+- Generate GitHub Actions or Azure DevOps YAML deployment pipelines with a single orchestrator script covering infrastructure (Bicep), modules, runbooks, assets, and schedules.
+- Add local PowerShell modules that are automatically bundled into the pipeline and staged to Azure Blob Storage for import during deployment.
 - Manage local mock values for Automation variables and inspect imported PowerShell modules.
 
 ## Typical Use Cases
@@ -37,3 +38,4 @@ Python runbook support exists for fetch, create, upload, publish, local run, and
 - Create a new local `.ps1` or `.py` runbook and let upload or publish trigger the Azure runbook creation flow with prefilled values.
 - Run a PowerShell runbook locally with mocked variables, credentials, connections, PnP, and Microsoft Graph sign-in helpers.
 - Save required PowerShell modules into the workspace sandbox so local debugging does not pollute the machine-wide PowerShell environment.
+- Include local private modules in the CI/CD pipeline — the extension bundles them as zips and the pipeline stages them via Azure Blob Storage during deployment.

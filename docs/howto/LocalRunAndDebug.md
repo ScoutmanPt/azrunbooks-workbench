@@ -73,6 +73,15 @@ The extension uses `Save-Module` and stores the module under:
 
 This gives you a workspace-local PowerShell module sandbox instead of polluting your main PowerShell environment.
 
+### Using Local Modules in the CI/CD Pipeline
+
+Modules saved in `.settings/cache/modules/` are for local run and debug only. To include a private module in the deployment pipeline:
+
+1. Place the module folder or zip under `.settings/cache/modules/`.
+2. Run `Generate CI/CD Pipeline` — the extension bundles it as a zip into `aaccounts/<account>/pipelines/modules/` and adds it to the modules manifest.
+3. Commit the `pipelines/modules/` folder — it is intentionally tracked in source control.
+4. During deployment, `deploy-modules.ps1` automatically creates a temporary storage account, stages the zip, imports it into Azure Automation, and deletes the storage account when done.
+
 ## Step 5. Run a Runbook Locally
 
 1. Right-click a runbook file.
@@ -143,4 +152,4 @@ That is expected for many Azure-only flows. The extension provides local mocks f
 
 ## Next Guide
 
-- [WorkspaceRulesAndRestrictions.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/WorkspaceRulesAndRestrictions.md)
+- [WorkspaceRulesAndRestrictions.md](WorkspaceRulesAndRestrictions.md)

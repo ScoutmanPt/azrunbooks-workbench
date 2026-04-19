@@ -6,11 +6,11 @@ Use these guides when you want task-oriented instructions instead of architectur
 
 ## Guides
 
-- [GettingStarted.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/GettingStarted.md)
-- [ManageAutomationAccounts.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageAutomationAccounts.md)
-- [ManageRunbooks.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageRunbooks.md)
-- [LocalRunAndDebug.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/LocalRunAndDebug.md)
-- [WorkspaceRulesAndRestrictions.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/WorkspaceRulesAndRestrictions.md)
+- [GettingStarted.md](GettingStarted.md)
+- [ManageAutomationAccounts.md](ManageAutomationAccounts.md)
+- [ManageRunbooks.md](ManageRunbooks.md)
+- [LocalRunAndDebug.md](LocalRunAndDebug.md)
+- [WorkspaceRulesAndRestrictions.md](WorkspaceRulesAndRestrictions.md)
 
 ## What You Will Find Here
 
@@ -22,8 +22,8 @@ Use these guides when you want task-oriented instructions instead of architectur
 
 ## Recommended Reading Order
 
-1. [GettingStarted.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/GettingStarted.md)
-2. [ManageAutomationAccounts.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageAutomationAccounts.md)
-3. [ManageRunbooks.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageRunbooks.md)
-4. [LocalRunAndDebug.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/LocalRunAndDebug.md)
-5. [WorkspaceRulesAndRestrictions.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/WorkspaceRulesAndRestrictions.md)
+1. [GettingStarted.md](GettingStarted.md)
+2. [ManageAutomationAccounts.md](ManageAutomationAccounts.md)
+3. [ManageRunbooks.md](ManageRunbooks.md)
+4. [LocalRunAndDebug.md](LocalRunAndDebug.md)
+5. [WorkspaceRulesAndRestrictions.md](WorkspaceRulesAndRestrictions.md)

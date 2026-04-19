@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="resources/readme-tech-banner.svg" alt="Azure Runbooks Workbench technology banner" width="100%" />
+  <img src="resources/readme-tech-banner.png" alt="Azure Runbooks Workbench technology banner" width="100%" />
 </p>
 
 # Azure Runbooks Workbench
@@ -27,7 +27,8 @@ I have been working with Azure Automation since the service was first introduced
 - Debug local runbooks from VS Code, including `F5` support on open runbook files.
 - Stream local execution output into the `Runbook Sessions` panel.
 - Save PowerShell modules into a workspace-local sandbox using `Save-Module`.
-- Generate starter GitHub Actions and Azure DevOps deployment pipelines.
+- Add local PowerShell modules to the pipeline so they are automatically staged and imported into Azure Automation during deployment.
+- Generate starter GitHub Actions and Azure DevOps deployment pipelines with a single orchestrator script covering infrastructure, modules, runbooks, assets, and schedules.
 
 ## Current Status
 
@@ -55,6 +56,7 @@ Azure Runbooks Workbench closes that gap by treating runbooks like source code w
 6. Run or debug locally with asset mocks.
 7. Upload as draft, compare, and publish when ready.
 8. Generate CI/CD scaffolding when you want to automate deployment.
+9. Add local PowerShell modules that the pipeline will automatically stage and import.
 
 ## Workspace Structure
 
@@ -71,6 +73,11 @@ The extension creates a predictable local structure like this:
     - mocks/
   - <accountName>/
     - Runbooks/
+    - pipelines/
+      - scripts/       ← deploy.ps1 orchestrator + sub-scripts
+      - biceps/        ← Bicep templates
+      - jsons/         ← modules, schedules, certificates manifests
+      - modules/       ← local module zips bundled at CI/CD generation
   - mocks/
     - generated/
 - local.settings.json
@@ -84,7 +91,8 @@ Notes:
 - `.settings/mocks/` stores the editable mock templates used for local runs.
 - `aaccounts/mocks/generated/` stores rendered local mock files.
 - `.settings/cache/modules/` is the isolated PowerShell module sandbox for local run and debug.
-- Local-only generated content is automatically added to `.gitignore`.
+- `aaccounts/<account>/pipelines/` contains the generated deployment pipeline, including the orchestrator script, Bicep template, JSON manifests, and bundled local module zips.
+- Local-only generated content is automatically added to `.gitignore`. Pipeline modules are committed to source control.
 
 ## Local Development Features
 
@@ -130,15 +138,15 @@ The extension supports:
 
 ## Included Documentation
 
-More detailed project documentation is available in the [`docs/`](/home/scoutman/github/azrunbooks-workbench/docs) folder:
+More detailed project documentation is available in the [`docs/`](docs/) folder:
 
-- [Overview.md](/home/scoutman/github/azrunbooks-workbench/docs/Overview.md)
-- [Architecture.md](/home/scoutman/github/azrunbooks-workbench/docs/Architecture.md)
-- [Commands.md](/home/scoutman/github/azrunbooks-workbench/docs/Commands.md)
-- [Configuration.md](/home/scoutman/github/azrunbooks-workbench/docs/Configuration.md)
-- [Workflow.md](/home/scoutman/github/azrunbooks-workbench/docs/Workflow.md)
-- [Testing.md](/home/scoutman/github/azrunbooks-workbench/docs/Testing.md)
-- [docs/howto/HowTo.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/HowTo.md)
+- [Overview.md](docs/Overview.md)
+- [Architecture.md](docs/Architecture.md)
+- [Commands.md](docs/Commands.md)
+- [Configuration.md](docs/Configuration.md)
+- [Workflow.md](docs/Workflow.md)
+- [Testing.md](docs/Testing.md)
+- [docs/howto/HowTo.md](docs/howto/HowTo.md)
 
 ## Build And Test
 
@@ -169,4 +177,4 @@ Author of [Mastering Microsoft 365 and SharePoint Online](https://www.amazon.com
 
 ## License
 
-See [LICENSE](/home/scoutman/github/azrunbooks-workbench/LICENSE).
+See [LICENSE](LICENSE).

@@ -82,6 +82,11 @@ After initialization, the workspace will contain a structure similar to this:
       mocks/
     <accountName>/
       Runbooks/
+      pipelines/
+        scripts/
+        biceps/
+        jsons/
+        modules/
     mocks/
       generated/
   local.settings.json
@@ -92,6 +97,11 @@ After initialization, the workspace will contain a structure similar to this:
 `aaccounts/<accountName>/Runbooks/`
 
 - the editable local runbook source files
+
+`aaccounts/<accountName>/pipelines/`
+
+- generated CI/CD deployment scripts, Bicep template, JSON manifests, and local module zips
+- created or refreshed each time you run `Generate CI/CD Pipeline`
 
 `.settings/aaccounts.json`
 
@@ -216,5 +226,5 @@ That is expected right now. Python support exists, but it is still in testing co
 
 ## Next Guides
 
-- [ManageAutomationAccounts.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageAutomationAccounts.md)
-- [ManageRunbooks.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageRunbooks.md)
+- [ManageAutomationAccounts.md](ManageAutomationAccounts.md)
+- [ManageRunbooks.md](ManageRunbooks.md)

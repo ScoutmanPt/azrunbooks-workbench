@@ -143,4 +143,4 @@ If a folder is created or moved into `Runbooks`, the extension removes or revert
 
 ## Next Guide
 
-- [LocalRunAndDebug.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/LocalRunAndDebug.md)
+- [LocalRunAndDebug.md](LocalRunAndDebug.md)

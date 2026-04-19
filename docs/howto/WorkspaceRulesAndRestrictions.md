@@ -84,6 +84,10 @@ If a folder is:
 
 the extension removes or reverts it and shows a warning.
 
+## What Is Allowed Inside an Account Folder
+
+Subfolders inside `aaccounts/<accountName>/` other than `Runbooks/` are fully editable. In particular, `pipelines/` and all its contents (`scripts/`, `biceps/`, `jsons/`, `modules/`) can be freely created, edited, renamed, and deleted. The extension regenerates the `pipelines/` folder each time you run `Generate CI/CD Pipeline`.
+
 ## What Happens When a Protected Action Is Attempted
 
 ### Rename or Move

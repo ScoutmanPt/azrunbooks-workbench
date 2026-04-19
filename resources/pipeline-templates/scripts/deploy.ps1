@@ -18,7 +18,8 @@
 .PARAMETER Location          Azure region override for the Bicep deployment (optional).
 .PARAMETER Sku               Automation Account SKU: Free or Basic (default: Basic).
 .PARAMETER StagingStorageAccount Azure Storage account used to stage local module zips.
-                             Required only when modules.json contains localPath entries.
+                             Optional — auto-created and deleted when local modules exist.
+                             Provide this to use a specific pre-existing account instead.
 .PARAMETER StagingContainer  Blob container for staging (default: automation-modules).
 .PARAMETER Login             Trigger an interactive az login before deploying.
                              Useful for local runs. Not needed in CI/CD (OIDC handles auth).
@@ -94,15 +95,15 @@ function Invoke-Step {
 
 # ── Deployment ────────────────────────────────────────────────────────────────
 Invoke-Step 'Infrastructure (Bicep)' {
-  $args = @{
+  $infraArgs = @{
     AccountName    = $AccountName
     ResourceGroup  = $ResourceGroup
     SubscriptionId = $SubscriptionId
     PipelineRoot   = $PipelineRoot
     Sku            = $Sku
   }
-  if ($Location) { $args.Location = $Location }
-  & (Join-Path $scriptsDir 'deploy-infrastructure.ps1') @args
+  if ($Location) { $infraArgs.Location = $Location }
+  & (Join-Path $scriptsDir 'deploy-infrastructure.ps1') @infraArgs
 }
 
 Invoke-Step 'Modules' {

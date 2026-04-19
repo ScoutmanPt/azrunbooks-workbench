@@ -30,7 +30,7 @@ npm run test:e2e
 
 ## Unit And Integration Coverage
 
-The main test suite uses a custom VS Code stub from [`test/mock-vscode.ts`](/home/scoutman/github/azrunbooks-workbench/test/mock-vscode.ts). That lets tests simulate:
+The main test suite uses a custom VS Code stub from [`test/mock-vscode.ts`](../test/mock-vscode.ts). That lets tests simulate:
 
 - tree providers
 - command execution
@@ -97,14 +97,14 @@ Recommended manual scenarios:
 
 | Test File | Coverage |
 | --- | --- |
-| [`test/accountsTreeProvider.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/accountsTreeProvider.test.ts) | Azure account tree sections and live child loading |
-| [`test/workspaceManager.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/workspaceManager.test.ts) | Workspace initialization, file I/O, metadata, local settings, cache, mocks, and git ignore behavior |
-| [`test/runbookCommands.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/runbookCommands.test.ts) | Fetch behavior, especially empty-content runbooks |
-| [`test/rbHelpers.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/rbHelpers.test.ts) | Command helper resolution such as local-run fallback and path parsing |
-| [`test/cicdGenerator.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/cicdGenerator.test.ts) | GitHub Actions and Azure DevOps YAML generation |
-| [`test/subscriptionColorRegistry.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/subscriptionColorRegistry.test.ts) | Stable subscription color assignment |
-| [`test/e2e.test.ts`](/home/scoutman/github/azrunbooks-workbench/test/e2e.test.ts) | Azure-backed end-to-end scenarios across auth, fetch, create, publish, and delete flows |
-| [`test/mock-vscode.ts`](/home/scoutman/github/azrunbooks-workbench/test/mock-vscode.ts) | VS Code API stub used by the automated suite |
+| [`test/accountsTreeProvider.test.ts`](../test/accountsTreeProvider.test.ts) | Azure account tree sections and live child loading |
+| [`test/workspaceManager.test.ts`](../test/workspaceManager.test.ts) | Workspace initialization, file I/O, metadata, local settings, cache, mocks, and git ignore behavior |
+| [`test/runbookCommands.test.ts`](../test/runbookCommands.test.ts) | Fetch behavior, especially empty-content runbooks |
+| [`test/rbHelpers.test.ts`](../test/rbHelpers.test.ts) | Command helper resolution such as local-run fallback and path parsing |
+| [`test/cicdGenerator.test.ts`](../test/cicdGenerator.test.ts) | GitHub Actions and Azure DevOps YAML generation |
+| [`test/subscriptionColorRegistry.test.ts`](../test/subscriptionColorRegistry.test.ts) | Stable subscription color assignment |
+| [`test/e2e.test.ts`](../test/e2e.test.ts) | Azure-backed end-to-end scenarios across auth, fetch, create, publish, and delete flows |
+| [`test/mock-vscode.ts`](../test/mock-vscode.ts) | VS Code API stub used by the automated suite |
 
 ## Practical Testing Notes
 
