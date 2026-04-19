@@ -2,7 +2,7 @@
   "name": "azure-runbook-workbench",
   "displayName": "Azure Runbooks Workbench",
   "description": "A modern Azure Automation Runbook developer experience - workspace-first, MSAL auth, local execution with asset mocking, and CI/CD generation.",
-  "version": "0.50.0",
+  "version": "0.55.0",
   "publisher": "ScoutmanPt",
   "icon": "resources/icon.png",
   "engines": {

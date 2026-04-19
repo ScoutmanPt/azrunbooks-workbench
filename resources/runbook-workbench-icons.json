@@ -269,9 +269,9 @@
     "PnPPowerShellMock.psm1.template": "_file_template",
     "MicrosoftGraphMock.psm1.template": "_file_template",
     "automationstubs.py.template": "_file_template",
-    "Get-GraphSites.ps1": "_file_ps72",
-    "Get-GraphTenantSites.ps1": "_file_ps72",
-    "Get-PnPSites.ps1": "_file_ps72"
+    "Get-GraphSites.ps1": "_file_ps51_azure",
+    "Get-GraphTenantSites.ps1": "_file_ps51_azure",
+    "Get-PnPSites.ps1": "_file_ps51_azure"
   },
   "folder": "_folder_default",
   "folderExpanded": "_folder_default_open",

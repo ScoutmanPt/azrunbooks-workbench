@@ -17,6 +17,9 @@
                              Defaults to ./local.settings.json in the working directory.
 .PARAMETER Location          Azure region override for the Bicep deployment (optional).
 .PARAMETER Sku               Automation Account SKU: Free or Basic (default: Basic).
+.PARAMETER StagingStorageAccount Azure Storage account used to stage local module zips.
+                             Required only when modules.json contains localPath entries.
+.PARAMETER StagingContainer  Blob container for staging (default: automation-modules).
 .PARAMETER Login             Trigger an interactive az login before deploying.
                              Useful for local runs. Not needed in CI/CD (OIDC handles auth).
 
@@ -25,18 +28,21 @@
   ./deploy.ps1 -AccountName "my-aa" -ResourceGroup "my-rg" -SubscriptionId "xxxxxxxx-..."
 
 .EXAMPLE
-  # Local run — interactive login, explicit paths
-  ./deploy.ps1 -AccountName "my-aa" -ResourceGroup "my-rg" -SubscriptionId "xxxxxxxx-..." -Login
+  # Local run with a private module staged in blob storage
+  ./deploy.ps1 -AccountName "my-aa" -ResourceGroup "my-rg" -SubscriptionId "xxxxxxxx-..." `
+               -StagingStorageAccount "mystorageacct" -Login
 #>
 param(
   [Parameter(Mandatory)] [string] $AccountName,
   [Parameter(Mandatory)] [string] $ResourceGroup,
   [Parameter(Mandatory)] [string] $SubscriptionId,
-  [string] $PipelineRoot      = '',
-  [string] $AccountPath       = '',
-  [string] $LocalSettingsPath = './local.settings.json',
-  [string] $Location          = '',
-  [string] $Sku               = 'Basic',
+  [string] $PipelineRoot           = '',
+  [string] $AccountPath            = '',
+  [string] $LocalSettingsPath      = './local.settings.json',
+  [string] $Location               = '',
+  [string] $Sku                    = 'Basic',
+  [string] $StagingStorageAccount  = '',
+  [string] $StagingContainer       = 'automation-modules',
   [switch] $Login
 )
 
@@ -100,11 +106,17 @@ Invoke-Step 'Infrastructure (Bicep)' {
 }
 
 Invoke-Step 'Modules' {
-  & (Join-Path $scriptsDir 'deploy-modules.ps1') `
-    -AccountName    $AccountName `
-    -ResourceGroup  $ResourceGroup `
-    -SubscriptionId $SubscriptionId `
-    -PipelineRoot   $PipelineRoot
+  $modArgs = @{
+    AccountName    = $AccountName
+    ResourceGroup  = $ResourceGroup
+    SubscriptionId = $SubscriptionId
+    PipelineRoot   = $PipelineRoot
+  }
+  if ($StagingStorageAccount) {
+    $modArgs.StagingStorageAccount = $StagingStorageAccount
+    $modArgs.StagingContainer      = $StagingContainer
+  }
+  & (Join-Path $scriptsDir 'deploy-modules.ps1') @modArgs
 }
 
 Invoke-Step 'Runbooks' {

@@ -488,6 +488,9 @@ export class WorkspaceManager {
       '.settings/cache/workspace-cache/',
       '.settings/tmp/',
       '.settings/cache/modules/',
+      // Explicitly un-ignore pipeline module zips so they are committed to the repo.
+      '!aaccounts/**/pipelines/modules/',
+      '!aaccounts/**/pipelines/modules/*.zip',
     ]) {
       if (!gitignore.includes(entry)) { gitignore += `\n${entry}`; }
     }

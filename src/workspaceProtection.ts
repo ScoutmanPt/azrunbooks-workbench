@@ -81,11 +81,11 @@ export function registerWorkspaceProtection(workspace: WorkspaceManager): Worksp
     if (targetPath.startsWith(settingsRoot + path.sep)) {
       return true;
     }
-    return isNestedAccountDirectory(targetPath);
+    return false;
   };
 
   const isProtectedRename = (oldPath: string, newPath: string): boolean =>
-    isProtectedPath(oldPath) || isNestedAccountDirectory(newPath, fs.existsSync(oldPath) ? fs.statSync(oldPath).isDirectory() : false);
+    isProtectedPath(oldPath) || isProtectedPath(newPath);
 
   const runbookNameWithSpaces = (targetPath: string): string | undefined => {
     const ext = path.extname(targetPath).toLowerCase();
@@ -260,34 +260,12 @@ export function registerWorkspaceProtection(workspace: WorkspaceManager): Worksp
     if (!workspace.isWorkspaceOpen) { return; }
     if (protectionSuspended()) { return; }
 
-    const removedFolders: string[] = [];
     const invalidRunbookNames: string[] = [];
-
-    for (const file of event.files) {
-      const targetPath = file.fsPath;
-      if (!isNestedAccountDirectory(targetPath, true)) { continue; }
-      if (!fs.existsSync(targetPath)) { continue; }
-
-      try {
-        fs.rmSync(targetPath, { recursive: true, force: true });
-        removedFolders.push(path.basename(targetPath));
-      } catch {
-        void vscode.window.showWarningMessage(
-          `Folders cannot be created inside Automation Account folders. The extension could not remove "${path.basename(targetPath)}" automatically.`
-        );
-      }
-    }
 
     for (const file of event.files) {
       const runbookName = runbookNameWithSpaces(file.fsPath);
       if (!runbookName) { continue; }
       invalidRunbookNames.push(runbookName);
-    }
-
-    if (removedFolders.length) {
-      void vscode.window.showWarningMessage(
-        `Folders cannot be created inside Automation Account folders. Removed: ${removedFolders.join(', ')}.`
-      );
     }
 
     if (invalidRunbookNames.length) {

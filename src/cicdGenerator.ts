@@ -1,8 +1,89 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
 import { sanitizeName, type LinkedAccount, type WorkspaceManager } from './workspaceManager';
 import type { AzureService } from './azureService';
+
+// ── Minimal ZIP writer (DEFLATE, no external deps) ───────────────────────────
+const CRC32_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) { c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); }
+    t[i] = c;
+  }
+  return t;
+})();
+
+function crc32(buf: Buffer): number {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) { crc = CRC32_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8); }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function collectZipEntries(dir: string, prefix = ''): Array<{ name: string; data: Buffer }> {
+  const entries: Array<{ name: string; data: Buffer }> = [];
+  for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entryName = prefix ? `${prefix}/${item.name}` : item.name;
+    if (item.isDirectory()) {
+      entries.push(...collectZipEntries(path.join(dir, item.name), entryName));
+    } else {
+      entries.push({ name: entryName, data: fs.readFileSync(path.join(dir, item.name)) });
+    }
+  }
+  return entries;
+}
+
+function writeZipArchive(sourceDir: string, destZip: string): void {
+  const entries = collectZipEntries(sourceDir);
+  const localParts: Buffer[] = [];
+  const cdParts: Buffer[] = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+
+  for (const entry of entries) {
+    const nameBytes = Buffer.from(entry.name, 'utf8');
+    const compressed = zlib.deflateRawSync(entry.data, { level: 6 });
+    const checksum = crc32(entry.data);
+
+    const lh = Buffer.alloc(30 + nameBytes.length);
+    lh.writeUInt32LE(0x04034b50, 0);
+    lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0, 6); lh.writeUInt16LE(8, 8);
+    lh.writeUInt16LE(dosTime, 10); lh.writeUInt16LE(dosDate, 12);
+    lh.writeUInt32LE(checksum, 14); lh.writeUInt32LE(compressed.length, 18);
+    lh.writeUInt32LE(entry.data.length, 22);
+    lh.writeUInt16LE(nameBytes.length, 26); lh.writeUInt16LE(0, 28);
+    nameBytes.copy(lh, 30);
+    localParts.push(lh, compressed);
+
+    const cd = Buffer.alloc(46 + nameBytes.length);
+    cd.writeUInt32LE(0x02014b50, 0);
+    cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6); cd.writeUInt16LE(0, 8); cd.writeUInt16LE(8, 10);
+    cd.writeUInt16LE(dosTime, 12); cd.writeUInt16LE(dosDate, 14);
+    cd.writeUInt32LE(checksum, 16); cd.writeUInt32LE(compressed.length, 20);
+    cd.writeUInt32LE(entry.data.length, 24);
+    cd.writeUInt16LE(nameBytes.length, 28); cd.writeUInt16LE(0, 30); cd.writeUInt16LE(0, 32);
+    cd.writeUInt16LE(0, 34); cd.writeUInt16LE(0, 36); cd.writeUInt32LE(0, 38);
+    cd.writeUInt32LE(offset, 42);
+    nameBytes.copy(cd, 46);
+    cdParts.push(cd);
+
+    offset += lh.length + compressed.length;
+  }
+
+  const cdBuf = Buffer.concat(cdParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4); eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(entries.length, 8); eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(cdBuf.length, 12); eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  fs.writeFileSync(destZip, Buffer.concat([...localParts, cdBuf, eocd]));
+}
 
 type PipelinePlatform = 'github' | 'azdo' | 'gitlab';
 type PipelineChoice = PipelinePlatform | 'both' | 'all';
@@ -189,21 +270,76 @@ export class CiCdGenerator {
       fs.writeFileSync(bicepTgt, content, 'utf8');
     }
 
-    // Manifest starters → pipelines/jsons/ — only written once so the user can customise them.
+    // jsons/ — certificates starter is write-once; modules manifest is regenerated with local modules.
     const jsonsDir = path.join(targetDir, 'jsons');
     fs.mkdirSync(jsonsDir, { recursive: true });
-    const manifests: Array<{ src: string; dst: string }> = [
-      { src: 'modules.manifest.json.template',      dst: `modules.${accountName}.json` },
-      { src: 'certificates.manifest.json.template', dst: `certificates.${accountName}.json` },
-    ];
-    for (const { src, dst } of manifests) {
-      const source = path.join(sourceDir, src);
-      const target = path.join(jsonsDir, dst);
-      if (!fs.existsSync(source) || fs.existsSync(target)) { continue; }
-      fs.copyFileSync(source, target);
+
+    const certSrc = path.join(sourceDir, 'certificates.manifest.json.template');
+    const certTgt = path.join(jsonsDir, `certificates.${accountName}.json`);
+    if (fs.existsSync(certSrc) && !fs.existsSync(certTgt)) {
+      fs.copyFileSync(certSrc, certTgt);
     }
 
-    this.outputChannel.appendLine(`[cicd] deploy assets → aaccounts/${accountName}/pipelines/{scripts,biceps,jsons}/`);
+    this.bundleLocalModules(accountName, targetDir, jsonsDir, sourceDir);
+
+    this.outputChannel.appendLine(`[cicd] deploy assets → aaccounts/${accountName}/pipelines/{scripts,biceps,jsons,modules}/`);
+  }
+
+  private bundleLocalModules(accountName: string, pipelinesDir: string, jsonsDir: string, sourceDir: string): void {
+    const localModulesDir = this.workspace.localModulesDir;
+    const modulesOutDir   = path.join(pipelinesDir, 'modules');
+    const manifestPath    = path.join(jsonsDir, `modules.${accountName}.json`);
+
+    // Collect local modules: .settings/cache/modules/<Name>/<Version>/
+    const localEntries: Array<{ name: string; zipPath: string }> = [];
+    if (fs.existsSync(localModulesDir)) {
+      for (const modName of fs.readdirSync(localModulesDir)) {
+        const modDir = path.join(localModulesDir, modName);
+        if (!fs.statSync(modDir).isDirectory()) { continue; }
+
+        // Pick latest version folder
+        const versions = fs.readdirSync(modDir, { withFileTypes: true })
+          .filter(e => e.isDirectory())
+          .map(e => e.name)
+          .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+        if (versions.length === 0) { continue; }
+
+        const versionDir = path.join(modDir, versions[0]);
+        fs.mkdirSync(modulesOutDir, { recursive: true });
+        const zipPath = path.join(modulesOutDir, `${modName}.zip`);
+        writeZipArchive(versionDir, zipPath);
+        localEntries.push({ name: modName, zipPath: `aaccounts/${accountName}/pipelines/modules/${modName}.zip` });
+        this.outputChannel.appendLine(`[cicd] local module zipped → pipelines/modules/${modName}.zip`);
+      }
+    }
+
+    // Read or seed the modules manifest
+    let manifest: { modules: Array<Record<string, unknown>> } = { modules: [] };
+    if (fs.existsSync(manifestPath)) {
+      try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as typeof manifest;
+        if (!Array.isArray(manifest.modules)) { manifest.modules = []; }
+      } catch { manifest = { modules: [] }; }
+    } else {
+      // Seed with the gallery starter from the template
+      const templateSrc = path.join(sourceDir, 'modules.manifest.json.template');
+      if (fs.existsSync(templateSrc)) {
+        try {
+          const tpl = JSON.parse(fs.readFileSync(templateSrc, 'utf8')) as typeof manifest;
+          manifest.modules = (tpl.modules ?? []).filter((m: Record<string, unknown>) => m['uri']);
+        } catch { /* use empty */ }
+      }
+    }
+
+    // Remove stale localPath entries (regenerated from cache every time)
+    manifest.modules = manifest.modules.filter((m: Record<string, unknown>) => !m['localPath']);
+
+    // Add current local module entries
+    for (const entry of localEntries) {
+      manifest.modules.push({ name: entry.name, localPath: entry.zipPath });
+    }
+
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
   }
 
   private pathIndent(platform: PipelinePlatform): number {
