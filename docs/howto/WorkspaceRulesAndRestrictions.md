@@ -4,7 +4,7 @@ This guide explains the protected workspace structure and the file explorer rule
 
 ## Why These Rules Exist
 
-Azure Runbook Workbench depends on a predictable folder layout. If key folders are renamed, deleted, or moved arbitrarily, the extension can lose account metadata, cache links, or runbook resolution logic.
+Azure Runbooks Workbench depends on a predictable folder layout. If key folders are renamed, deleted, or moved arbitrarily, the extension can lose account metadata, cache links, or runbook resolution logic.
 
 To reduce accidental breakage, the extension protects specific structural paths.
 
@@ -83,6 +83,10 @@ If a folder is:
 - moved into `Runbooks`
 
 the extension removes or reverts it and shows a warning.
+
+## What Is Allowed Inside an Account Folder
+
+Subfolders inside `aaccounts/<accountName>/` other than `Runbooks/` are fully editable. In particular, `pipelines/` and all its contents (`scripts/`, `biceps/`, `jsons/`, `modules/`) can be freely created, edited, renamed, and deleted. The extension regenerates the `pipelines/` folder each time you run `Generate CI/CD Pipeline`.
 
 ## What Happens When a Protected Action Is Attempted
 

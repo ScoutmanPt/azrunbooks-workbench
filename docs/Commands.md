@@ -1,6 +1,6 @@
 ![Commands Banner](assets/commands-banner.svg)
 
-# Azure Runbook Workbench - Commands
+# Azure Runbooks Workbench - Commands
 
 ## Command Table
 
@@ -177,9 +177,9 @@
 
 ### `runbookWorkbench.generateCiCd`
 
-- Description: Generates starter deployment YAML for GitHub Actions, Azure DevOps, or both.
+- Description: Generates a complete deployment pipeline for GitHub Actions or Azure DevOps. Writes the platform YAML, copies the orchestrator `deploy.ps1` and all sub-scripts into `pipelines/scripts/`, copies the Bicep template into `pipelines/biceps/`, and bundles any local modules from `.settings/cache/modules/` as zips into `pipelines/modules/`. Scripts and Bicep are always overwritten so they stay in sync with the current template version.
 - Pre-conditions: At least one account must be linked in the workspace.
-- Post-conditions: `.github/workflows/deploy-runbooks.yml` and or `azure-pipelines.yml` are written and opened.
+- Post-conditions: For GitHub Actions, `.github/workflows/deploy-<account>.yml` is written. For Azure DevOps, `azure-pipelines-<account>.yml` is written to the repo root. `pipelines/` subfolders are created or refreshed under the account folder.
 - Error cases: Shows an error when there is no linked account or no workspace folder.
 
 ### `runbookWorkbench.manageAssets`

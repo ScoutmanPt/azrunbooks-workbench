@@ -1,6 +1,6 @@
 ![Architecture Banner](assets/architecture-banner.svg)
 
-# Azure Runbook Workbench - Architecture
+# Azure Runbooks Workbench - Architecture
 
 ## Project Structure
 
@@ -46,17 +46,17 @@ azrunbooks-workbench/
 
 | File | Class Or Module | Responsibility |
 | --- | --- | --- |
-| [`src/extension.ts`](/home/scoutman/github/azrunbooks-workbench/src/extension.ts) | `activate` | Composes services, registers providers and commands, reveals the sessions panel, and applies workflow read-only protection. |
-| [`src/authManager.ts`](/home/scoutman/github/azrunbooks-workbench/src/authManager.ts) | `AuthManager` | Acquires ARM tokens from VS Code auth first and Azure CLI second, manages cloud selection, and exposes a credential for the Azure SDK. |
-| [`src/azureService.ts`](/home/scoutman/github/azrunbooks-workbench/src/azureService.ts) | `AzureService` | Wraps Azure Automation list operations and lifecycle operations such as create, draft upload, publish, fetch content, delete, and test jobs. |
-| [`src/accountsTreeProvider.ts`](/home/scoutman/github/azrunbooks-workbench/src/accountsTreeProvider.ts) | `AccountsTreeProvider` | Builds the Azure-side explorer tree for subscriptions, Automation Accounts, runbooks, jobs, schedules, assets, modules, packages, runtime environments, and hybrid workers. |
-| [`src/workspaceManager.ts`](/home/scoutman/github/azrunbooks-workbench/src/workspaceManager.ts) | `WorkspaceManager` | Owns local workspace structure, metadata files, mock template seeding, generated mock paths, cache paths, and deploy tracking. |
-| [`src/workspaceRunbooksTreeProvider.ts`](/home/scoutman/github/azrunbooks-workbench/src/workspaceRunbooksTreeProvider.ts) | `WorkspaceRunbooksTreeProvider` | Displays the workspace view from local runbook files and cached section JSON. |
-| [`src/runbookCommands.ts`](/home/scoutman/github/azrunbooks-workbench/src/runbookCommands.ts) | `RunbookCommands` | Implements fetch, publish, diff, test job, create, delete, and fetch-all orchestration. |
-| [`src/rbCommands.ts`](/home/scoutman/github/azrunbooks-workbench/src/rbCommands.ts) | `registerRbCommands` | Connects command IDs to command handlers, resolves selected items, and coordinates view refreshes and user prompts. |
-| [`src/localRunner.ts`](/home/scoutman/github/azrunbooks-workbench/src/localRunner.ts) | `LocalRunner` | Runs and debugs PowerShell and Python runbooks locally, writes rendered mocks, and injects local module paths. |
-| [`src/runbookSessionsViewProvider.ts`](/home/scoutman/github/azrunbooks-workbench/src/runbookSessionsViewProvider.ts) | `RunbookSessionsViewProvider` | Hosts the bottom-panel live output UI for local run sessions. |
-| [`src/cicdGenerator.ts`](/home/scoutman/github/azrunbooks-workbench/src/cicdGenerator.ts) | `CiCdGenerator` | Writes starter deployment YAML for GitHub Actions and Azure DevOps. |
+| [`src/extension.ts`](../src/extension.ts) | `activate` | Composes services, registers providers and commands, reveals the sessions panel, and applies workflow read-only protection. |
+| [`src/authManager.ts`](../src/authManager.ts) | `AuthManager` | Acquires ARM tokens from VS Code auth first and Azure CLI second, manages cloud selection, and exposes a credential for the Azure SDK. |
+| [`src/azureService.ts`](../src/azureService.ts) | `AzureService` | Wraps Azure Automation list operations and lifecycle operations such as create, draft upload, publish, fetch content, delete, and test jobs. |
+| [`src/accountsTreeProvider.ts`](../src/accountsTreeProvider.ts) | `AccountsTreeProvider` | Builds the Azure-side explorer tree for subscriptions, Automation Accounts, runbooks, jobs, schedules, assets, modules, packages, runtime environments, and hybrid workers. |
+| [`src/workspaceManager.ts`](../src/workspaceManager.ts) | `WorkspaceManager` | Owns local workspace structure, metadata files, mock template seeding, generated mock paths, cache paths, and deploy tracking. |
+| [`src/workspaceRunbooksTreeProvider.ts`](../src/workspaceRunbooksTreeProvider.ts) | `WorkspaceRunbooksTreeProvider` | Displays the workspace view from local runbook files and cached section JSON. |
+| [`src/runbookCommands.ts`](../src/runbookCommands.ts) | `RunbookCommands` | Implements fetch, publish, diff, test job, create, delete, and fetch-all orchestration. |
+| [`src/rbCommands.ts`](../src/rbCommands.ts) | `registerRbCommands` | Connects command IDs to command handlers, resolves selected items, and coordinates view refreshes and user prompts. |
+| [`src/localRunner.ts`](../src/localRunner.ts) | `LocalRunner` | Runs and debugs PowerShell and Python runbooks locally, writes rendered mocks, and injects local module paths. |
+| [`src/runbookSessionsViewProvider.ts`](../src/runbookSessionsViewProvider.ts) | `RunbookSessionsViewProvider` | Hosts the bottom-panel live output UI for local run sessions. |
+| [`src/cicdGenerator.ts`](../src/cicdGenerator.ts) | `CiCdGenerator` | Writes deployment YAML for GitHub Actions and Azure DevOps, copies pipeline scripts and Bicep template, bundles local modules as zips, and updates the modules manifest. |
 
 ## Data Flow
 
@@ -72,7 +72,7 @@ The extension follows a layered flow:
 ## Activation Lifecycle
 
 1. VS Code activates the extension when one of its contributed commands, views, menus, or keybindings is used.
-2. [`src/extension.ts`](/home/scoutman/github/azrunbooks-workbench/src/extension.ts) constructs the core services:
+2. [`src/extension.ts`](../src/extension.ts) constructs the core services:
    - `AuthManager`
    - `AzureService`
    - `WorkspaceManager`
@@ -100,15 +100,18 @@ The extension creates and uses this runtime structure inside the user workspace:
 - aaccounts/
   - <accountName>/
     - Runbooks/
-      - Published/
-      - Draft/
+    - pipelines/
+      - scripts/      ← deploy.ps1 + sub-scripts (generated, always overwritten)
+      - biceps/       ← automation-account.bicep (generated, always overwritten)
+      - jsons/        ← modules.<account>.json, schedules.<account>.json, etc.
+      - modules/      ← local module zips bundled at generation time (committed)
+  - mocks/
+    - generated/
 - local.settings.json
 - .settings/aaccounts.json
 - .settings/cache/
   - workspace-cache/
   - modules/
--   - mocks/
-    - generated/
 ```
 
 ## Key Design Decisions

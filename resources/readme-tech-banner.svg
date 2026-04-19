@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 420" fill="none" role="img" aria-labelledby="title desc">
-  <title id="title">Azure Runbook Workbench Banner</title>
-  <desc id="desc">Marketplace banner for Azure Runbook Workbench with Azure native styling, enterprise layout, and runbook development themes.</desc>
+  <title id="title">Azure Runbooks Workbench Banner</title>
+  <desc id="desc">Marketplace banner for Azure Runbooks Workbench with Azure native styling, enterprise layout, and runbook development themes.</desc>
 
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="420" gradientUnits="userSpaceOnUse">
@@ -63,7 +63,7 @@
     AZURE AUTOMATION FOR VISUAL STUDIO CODE
   </text>
   <text x="282" y="190" fill="#F4FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="800">
-    Azure Runbook Workbench
+    Azure Runbooks Workbench
   </text>
   <text x="282" y="232" fill="#D8EEFF" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500">
     Fetch, author, mock, debug, publish, and automate runbooks from one workspace.

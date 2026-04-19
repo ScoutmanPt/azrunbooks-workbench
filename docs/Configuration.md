@@ -1,6 +1,6 @@
 ![Configuration Banner](assets/configuration-banner.svg)
 
-# Azure Runbook Workbench - Configuration
+# Azure Runbooks Workbench - Configuration
 
 ## Settings
 

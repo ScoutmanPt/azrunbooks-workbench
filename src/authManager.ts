@@ -83,7 +83,7 @@ export class AuthManager {
     this._session = undefined;
     this._suppressSilentSignIn = true;
     this._onDidSignInChange.fire(false);
-    void vscode.window.showInformationMessage('Signed out of Azure Runbook Workbench.');
+    void vscode.window.showInformationMessage('Signed out of Azure Runbooks Workbench.');
   }
 
   async selectCloud(): Promise<void> {

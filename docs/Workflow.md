@@ -1,10 +1,10 @@
 ![Workflow Banner](assets/workflow-banner.svg)
 
-# Azure Runbook Workbench - Workflow
+# Azure Runbooks Workbench - Workflow
 
 ## Installation And First Launch
 
-After the extension is installed, it contributes an activity-bar container named `Azure Runbook Workbench` and a bottom panel named `Runbook Sessions`. The main side views are:
+After the extension is installed, it contributes an activity-bar container named `Azure Runbooks Workbench` and a bottom panel named `Runbook Sessions`. The main side views are:
 
 - `Automation Accounts` - Azure-first browsing of subscriptions, accounts, runbooks, and account resources
 - `Workspace` - local workspace files and fetched section data
@@ -13,7 +13,7 @@ The extension does not require a sign-in at install time, but the Azure-side tre
 
 ## Authentication
 
-Authentication is handled by [`src/authManager.ts`](/home/scoutman/github/azrunbooks-workbench/src/authManager.ts):
+Authentication is handled by [`src/authManager.ts`](../src/authManager.ts):
 
 1. The extension asks VS Code's built-in Microsoft authentication provider for a token scoped to Azure Resource Manager.
 2. If the provider cannot supply a token for that scope, the extension falls back to:
@@ -37,6 +37,13 @@ Supported clouds:
 ```text
 <workspace>/
 - aaccounts/
+  - <accountName>/
+    - Runbooks/
+    - pipelines/
+      - scripts/
+      - biceps/
+      - jsons/
+      - modules/
   - mocks/
     - generated/
 - .settings/aaccounts.json
@@ -149,12 +156,24 @@ This is a local development helper, not a full Azure asset editor.
 
 ## CI/CD Generation
 
-`Generate CI/CD Pipeline` writes starter deployment YAML for:
+`Generate CI/CD Pipeline` writes a complete deployment pipeline for:
 
-- GitHub Actions
-- Azure DevOps
+- GitHub Actions (`.github/workflows/deploy-<account>.yml`)
+- Azure DevOps (`azure-pipelines-<account>.yml` at repo root)
 
-These templates are intended as starting points. They inject the linked Automation Account metadata and create deployment scripts that replace content and publish runbooks.
+The pipeline is built around a single orchestrator script at `aaccounts/<account>/pipelines/scripts/deploy.ps1` that calls five sub-scripts in sequence:
+
+1. **deploy-infrastructure.ps1** — deploys the Automation Account via Bicep
+2. **deploy-modules.ps1** — imports PowerShell Gallery and local modules
+3. **deploy-runbooks.ps1** — creates or updates all runbook files
+4. **deploy-assets.ps1** — deploys variables, credentials, connections, and certificates
+5. **deploy-schedules.ps1** — creates schedules and links them to runbooks
+
+The pipeline can also be run locally by calling `deploy.ps1` directly with `-Login` for interactive Azure authentication.
+
+### Local Module Support
+
+If you have local private PowerShell modules in `.settings/cache/modules/`, use the extension to add them as pipeline modules. The extension bundles them as zip files into `aaccounts/<account>/pipelines/modules/` at CI/CD generation time. During deployment, `deploy-modules.ps1` automatically creates a temporary Azure Blob Storage account, stages each zip, generates a short-lived SAS URL for import, waits for Azure Automation to finish the async import, then deletes the storage account. No extra permissions beyond `Contributor` on the resource group are required.
 
 ## Core Fetch Edit Publish Loop
 

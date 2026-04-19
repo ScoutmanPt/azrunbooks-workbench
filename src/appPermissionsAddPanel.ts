@@ -8,7 +8,7 @@ import { esc, KNOWN_API_LABELS } from './appPermissionsShared';
 // ── Main render ───────────────────────────────────────────────────────────────
 
 export function renderAddPanel(state: AddPanelState): string {
-  const tabs = (['graph', 'sharepoint', 'azure'] as const).map(k => {
+  const tabs = (['graph', 'sharepoint'] as const).map(k => {
     const active = state.tab === k;
     return `<button class="add-tab${active ? ' active' : ''}" data-tab="${k}">${esc(KNOWN_API_LABELS[k])}</button>`;
   }).join('');

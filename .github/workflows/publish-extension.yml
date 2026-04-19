@@ -1,0 +1,50 @@
+# Builds and publishes the Azure Runbooks Workbench extension to the VS Code Marketplace.
+# Triggered manually from the GitHub Actions UI.
+#
+# Required secret:
+#   VSCE_PAT  —  Personal Access Token for the ScoutmanPt marketplace publisher.
+#                Create at https://dev.azure.com → User settings → Personal access tokens
+#                Scope: Marketplace → Manage
+
+name: Publish Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_bump:
+        description: 'Skip automatic version bump (use current package.json version)'
+        type: boolean
+        default: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: ./scripts/publish-extension.ps1 -Phase install
+
+      - name: Build extension
+        shell: pwsh
+        run: |
+          $params = @{ Phase = 'build' }
+          if ([System.Convert]::ToBoolean("${{ inputs.skip_bump }}")) {
+            $params.SkipBump = $true
+          }
+          & ./scripts/publish-extension.ps1 @params
+
+      - name: Publish to VS Code Marketplace
+        shell: pwsh
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: ./scripts/publish-extension.ps1 -Phase publish -PatToken $env:VSCE_PAT

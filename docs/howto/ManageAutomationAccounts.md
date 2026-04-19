@@ -101,9 +101,19 @@ Azure does not return secret values for encrypted variables or credential passwo
 
 1. Right-click an Automation Account.
 2. Choose `Generate CI/CD Pipeline`.
-3. Choose the target style when prompted.
+3. Choose **GitHub Actions** or **Azure DevOps**.
 
-Generated file names include the Automation Account name as a suffix, so multiple accounts can coexist more cleanly in one repo.
+What gets generated:
+
+- A deployment YAML file for the chosen platform (GitHub Actions goes to `.github/workflows/`, Azure DevOps to the repo root)
+- `aaccounts/<account>/pipelines/scripts/` — `deploy.ps1` orchestrator and five sub-scripts
+- `aaccounts/<account>/pipelines/biceps/` — `automation-account.bicep`
+- `aaccounts/<account>/pipelines/jsons/` — module and schedule manifests
+- `aaccounts/<account>/pipelines/modules/` — bundled local module zips (if any)
+
+The orchestrator `deploy.ps1` can also be run locally with `-Login` for interactive Azure authentication without going through CI/CD.
+
+File names include the Automation Account name so multiple accounts can coexist in one repo.
 
 ## Step 8. Understand the Account Folder Layout
 
@@ -113,6 +123,11 @@ For each initialized account, the workspace typically looks like:
 aaccounts/
   <accountName>/
     Runbooks/
+    pipelines/
+      scripts/
+      biceps/
+      jsons/
+      modules/
 ```
 
 What is stored elsewhere:
@@ -130,7 +145,7 @@ Protected structure rules include:
 - each Automation Account folder is protected
 - each `Runbooks/` folder is protected
 
-That means the extension may warn and restore those items if you try to move, rename, or delete them through the file explorer.
+Subfolders inside an account folder such as `pipelines/` and its contents are **not** protected — you can freely add, edit, or delete files there. The protection only applies to the top-level structural folders.
 
 ## Recommended Team Practice
 
@@ -141,4 +156,4 @@ That means the extension may warn and restore those items if you try to move, re
 
 ## Next Guide
 
-- [ManageRunbooks.md](/home/scoutman/github/azrunbooks-workbench/docs/howto/ManageRunbooks.md)
+- [ManageRunbooks.md](ManageRunbooks.md)

@@ -1,9 +1,20 @@
 {
   "modules": [
     {
+      "_comment": "Gallery module — downloaded directly by Azure Automation from the URI",
       "name": "Az.Accounts",
       "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/3.0.2",
       "version": "3.0.2"
+    },
+    {
+      "_comment": "Local zip — staged in Blob Storage; requires -StagingStorageAccount on deploy.ps1",
+      "name": "MyPrivateModule",
+      "localPath": "aaccounts/<account>/modules/MyPrivateModule.zip"
+    },
+    {
+      "_comment": "Local folder — auto-zipped then staged; requires -StagingStorageAccount on deploy.ps1",
+      "name": "MyPrivateModule",
+      "localPath": "aaccounts/<account>/modules/MyPrivateModule"
     }
   ]
 }

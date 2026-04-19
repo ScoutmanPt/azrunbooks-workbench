@@ -4,6 +4,7 @@ import * as path from 'path';
 import type { AzureAutomationAccount, AzureService, RunbookSummary, RuntimeEnvironmentCreateRequest } from './azureService';
 import { AccountSectionItem, AutomationAccountItem, RunbookItem, RuntimeEnvironmentItem, SubscriptionItem } from './accountsTreeProvider';
 import type { AccountsTreeProvider } from './accountsTreeProvider';
+import { SUPPORTED_RUNTIME_VERSIONS } from './assetsShared';
 import { runbookTypeForFilePath } from './workspaceManager';
 import type { WorkspaceManager } from './workspaceManager';
 import type { CreateRunbookPrefill, RunbookCommands } from './runbookCommands';
@@ -22,6 +23,7 @@ import type { JobsPanel } from './jobsPanel';
 import type { SchedulesPanel } from './schedulesPanel';
 import type { AssetsPanel } from './assetsPanel';
 import type { AppPermissionsPanel } from './appPermissionsPanel';
+import type { DocumentationGenerator } from './documentationGenerator';
 import {
   CERTIFICATE_BASE64_KEY,
   CERTIFICATE_DESCRIPTION_KEY,
@@ -53,6 +55,7 @@ export interface RbCommandDeps {
   commands: RunbookCommands;
   runner: LocalRunner;
   cicd: CiCdGenerator;
+  docgen: DocumentationGenerator;
   jobsPanel: JobsPanel;
   schedulesPanel: SchedulesPanel;
   assetsPanel: AssetsPanel;
@@ -318,13 +321,9 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<Runt
   );
   if (!language) { return; }
 
-  const version = await vscode.window.showInputBox({
+  const versionOptions = (SUPPORTED_RUNTIME_VERSIONS[language.value] ?? []).map(v => ({ label: v, value: v }));
+  const version = await vscode.window.showQuickPick(versionOptions, {
     title: `Runtime Version - ${name}`,
-    prompt: language.value === 'PowerShell'
-      ? 'Example: 7.2'
-      : 'Example: 3.10',
-    ignoreFocusOut: true,
-    validateInput: value => value.trim() ? null : 'Version is required.',
   });
   if (!version) { return; }
 
@@ -342,7 +341,7 @@ async function promptForRuntimeEnvironmentCreate(location: string): Promise<Runt
     name,
     location,
     language: language.value,
-    version: version.trim(),
+    version: version.value,
     description: description.trim() || undefined,
     defaultPackages: Object.keys(defaultPackages).length > 0 ? defaultPackages : undefined,
   };
@@ -373,9 +372,16 @@ async function manageRuntimeEnvironments(
   if (picked.value === '__create') {
     const request = await promptForRuntimeEnvironmentCreate(account.location);
     if (!request) { return false; }
-    await azure.createRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, request);
-    outputChannel.appendLine(`[runtime-environment] Created ${request.name} in ${account.name}`);
-    void vscode.window.showInformationMessage(`Created Runtime Environment "${request.name}".`);
+    try {
+      await azure.createRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, request);
+      outputChannel.appendLine(`[runtime-environment] Created ${request.name} in ${account.name}`);
+      void vscode.window.showInformationMessage(`Created Runtime Environment "${request.name}".`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      outputChannel.appendLine(`[runtime-environment] Failed to create ${request.name}: ${msg}`);
+      void vscode.window.showErrorMessage(`Failed to create runtime environment: ${msg}`);
+      return false;
+    }
     return true;
   }
 
@@ -1208,8 +1214,6 @@ const WORKSPACE_EXEMPT = new Set([
   'runbookWorkbench.selectCloud',
   'runbookWorkbench.refresh',
   'runbookWorkbench.refreshWorkspaceRunbooks',
-  'runbookWorkbench.initWorkspace',
-  'runbookWorkbench.initAndFetchAllInSubscription',
   'runbookWorkbench.createAutomationAccount',
   'runbookWorkbench.manageRuntimeEnvironments',
   'runbookWorkbench.changeRunbookRuntimeEnvironment',
@@ -1365,7 +1369,7 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     auth, azure, workspace, outputChannel,
     treeProvider, workspaceRunbooksProvider,
     folderDecorations, iconTheme, workspaceProtection,
-    commands, runner, cicd, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
+    commands, runner, cicd, docgen, jobsPanel, schedulesPanel, assetsPanel, appPermissionsPanel,
   } = deps;
 
   const reg = (id: string, fn: (...args: unknown[]) => unknown): vscode.Disposable =>
@@ -1415,63 +1419,6 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     reg('runbookWorkbench.refreshWorkspaceRunbooks', () => {
       workspaceRunbooksProvider.refresh();
       iconTheme.update();
-    }),
-
-    reg('runbookWorkbench.initWorkspace', async (item: unknown) => {
-      const account = item instanceof AutomationAccountItem ? item.account : undefined;
-      if (!account) {
-        void vscode.window.showErrorMessage('Select an Automation Account in the tree first.');
-        return;
-      }
-      if (!workspace.isWorkspaceOpen) {
-        void vscode.window.showErrorMessage('Open a folder in VS Code before initializing a workspace.');
-        return;
-      }
-      const before = workspace.getLinkedAccounts();
-      outputChannel.appendLine(`[init] Before: ${before.map(a => a.accountName).join(', ') || '(none)'}`);
-      await workspace.initWorkspace(account.name, account.resourceGroupName, account.subscriptionId, account.subscriptionName, account.location);
-      const after = workspace.getLinkedAccounts();
-      outputChannel.appendLine(`[init] After: ${after.map(a => a.accountName).join(', ')}`);
-      workspaceRunbooksProvider.refresh();
-      folderDecorations.refresh();
-      iconTheme.update();
-      void vscode.window.showInformationMessage(
-        `Workspace initialized for "${account.name}". Open local.settings.json to configure asset mocks.`
-      );
-      const doc = await vscode.workspace.openTextDocument(workspace.localSettingsPath);
-      await vscode.window.showTextDocument(doc);
-    }),
-
-    reg('runbookWorkbench.initAndFetchAllInSubscription', async (item: unknown) => {
-      if (!(item instanceof SubscriptionItem)) { return; }
-      if (!workspace.isWorkspaceOpen) {
-        void vscode.window.showErrorMessage('Open a folder in VS Code before initializing a workspace.');
-        return;
-      }
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `Setting up "${item.subscription.name}"…` },
-        async () => {
-          const accounts = await azure.listAutomationAccounts(item.subscription.id, item.subscription.name);
-          if (accounts.length === 0) {
-            void vscode.window.showInformationMessage('No Automation Accounts found in this subscription.');
-            return;
-          }
-          for (const account of accounts) {
-            outputChannel.appendLine(`[setup] Initializing ${account.name}…`);
-            await workspace.initWorkspace(account.name, account.resourceGroupName, account.subscriptionId, account.subscriptionName, account.location);
-          }
-          for (const account of accounts) {
-            outputChannel.appendLine(`[setup] Fetching all resources for ${account.name}…`);
-            await commands.fetchAllForAccount(account);
-          }
-          workspaceRunbooksProvider.refresh();
-          folderDecorations.refresh();
-          iconTheme.update();
-          void vscode.window.showInformationMessage(
-            `Setup complete: ${accounts.length} account(s) from "${item.subscription.name}" initialized and fetched.`
-          );
-        }
-      );
     }),
 
     reg('runbookWorkbench.createAutomationAccount', async (item: unknown) => {
@@ -1751,7 +1698,10 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
 
     reg('runbookWorkbench.startJob', async (item: unknown) => {
       const runbook = await resolveRunbook(item, azure, workspace);
-      if (!runbook) { return; }
+      if (!runbook) {
+        void vscode.window.showErrorMessage('Right-click a published runbook in the Accounts tree to start a job.');
+        return;
+      }
       await commands.startJob(runbook);
     }),
 
@@ -1975,6 +1925,12 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     reg('runbookWorkbench.generateCiCd', async (_item: unknown) => {
       const accountName = getAccountNameFromExplorerUri(_item);
       await cicd.generate(accountName);
+    }),
+
+    reg('runbookWorkbench.generateDocumentation', async (item: unknown) => {
+      const account = resolveAutomationAccountFromItem(item, workspace);
+      if (!account) { return; }
+      await docgen.generate(account);
     }),
 
     reg('runbookWorkbench.manageAssets', async (item: unknown) => {

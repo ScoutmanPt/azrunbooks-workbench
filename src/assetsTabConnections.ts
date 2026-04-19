@@ -87,14 +87,39 @@ export function renderConnectionsPane(tabState: TabState<ConnectionItem>): strin
 
 // ── Form rendering ────────────────────────────────────────────────────────────
 
-export function renderConnectionsFormBody(prefill: Record<string, unknown>, isEdit: boolean): string {
-  const name      = isEdit ? esc(String(prefill['name']           ?? '')) : '';
-  const connType  = isEdit ? esc(String(prefill['connectionType'] ?? '')) : '';
-  const desc      = isEdit ? esc(String(prefill['description']    ?? '')) : '';
-  const fieldVals = isEdit && prefill['fieldValues']
-    ? prefill['fieldValues'] as Record<string, string>
-    : {};
+const CONNECTION_TYPE_FIELDS: Record<string, string[]> = {
+  'Azure':                    ['AutomationCertificateName', 'SubscriptionID'],
+  'AzureClassicCertificate':  ['SubscriptionName', 'SubscriptionId', 'CertificateAssetName'],
+  'AzureServicePrincipal':    ['ApplicationId', 'TenantId', 'CertificateThumbprint', 'SubscriptionId'],
+};
 
+export function renderConnectionsFormBody(prefill: Record<string, unknown>, isEdit: boolean): string {
+  const name     = esc(String(prefill['name']           ?? ''));
+  const connType = esc(String(prefill['connectionType'] ?? ''));
+  const desc     = esc(String(prefill['description']    ?? ''));
+
+  // Normalise field values into a Record regardless of source (Azure API object vs error-restore arrays)
+  let fieldVals: Record<string, string> = {};
+  if (prefill['fieldValues'] && !Array.isArray(prefill['fieldValues'])) {
+    fieldVals = prefill['fieldValues'] as Record<string, string>;
+  } else if (Array.isArray(prefill['fieldKeys'])) {
+    const keys = prefill['fieldKeys'] as string[];
+    const vals = Array.isArray(prefill['fieldValues']) ? prefill['fieldValues'] as string[] : [];
+    keys.forEach((k, i) => { if (k) { fieldVals[k] = vals[i] ?? ''; } });
+  }
+
+  // ── Field section for new connections ─────────────────────────────────────
+  const typedFieldSections = isEdit ? '' : Object.entries(CONNECTION_TYPE_FIELDS).map(([type, fields]) => `
+    <div id="fields-${type}" class="type-fields"${connType !== type ? ' style="display:none"' : ''}>
+      ${fields.map(f => `
+      <div class="form-field">
+        <label class="form-label required">${esc(f)}</label>
+        <input class="form-input typed-field" data-key="${esc(f)}" type="text"
+          value="${esc(fieldVals[f] ?? '')}" placeholder="${esc(f)}" />
+      </div>`).join('')}
+    </div>`).join('');
+
+  // ── Generic key/value rows for edit mode ──────────────────────────────────
   const existingRows = Object.entries(fieldVals).map(([k, v]) => `
     <div class="field-row">
       <input class="form-input field-key" value="${esc(k)}" placeholder="Key" />
@@ -109,7 +134,12 @@ export function renderConnectionsFormBody(prefill: Record<string, unknown>, isEd
       <button class="field-row-btn" type="button" title="Remove">&times;</button>
     </div>`;
 
-  const fieldRowsHtml = Object.keys(fieldVals).length > 0 ? existingRows : emptyRow;
+  const genericFieldRows = `
+    <div class="form-field">
+      <label class="form-label">Field Values</label>
+      <div class="field-rows" id="field-rows-container">${Object.keys(fieldVals).length > 0 ? existingRows : emptyRow}</div>
+      <button class="add-field-btn" id="add-field-row" type="button">+ Add field</button>
+    </div>`;
 
   return `
     <div class="form-field">
@@ -118,18 +148,20 @@ export function renderConnectionsFormBody(prefill: Record<string, unknown>, isEd
     </div>
     <div class="form-field">
       <label class="form-label required">Connection Type</label>
-      <input class="form-input" id="f-conn-type" type="text" value="${connType}" ${isEdit ? 'readonly' : ''}
-        placeholder="e.g. AzureServicePrincipal" />
+      ${isEdit
+        ? `<input class="form-input" id="f-conn-type" type="text" value="${connType}" readonly />`
+        : `<select class="form-input" id="f-conn-type">
+        <option value="" disabled ${connType === '' ? 'selected' : ''}>Select a connection type...</option>
+        <option value="Azure" ${connType === 'Azure' ? 'selected' : ''}>Azure</option>
+        <option value="AzureClassicCertificate" ${connType === 'AzureClassicCertificate' ? 'selected' : ''}>AzureClassicCertificate</option>
+        <option value="AzureServicePrincipal" ${connType === 'AzureServicePrincipal' ? 'selected' : ''}>AzureServicePrincipal</option>
+      </select>`}
     </div>
     <div class="form-field">
       <label class="form-label">Description</label>
       <input class="form-input" id="f-description" type="text" value="${desc}" placeholder="Optional description" />
     </div>
-    <div class="form-field">
-      <label class="form-label">Field Values</label>
-      <div class="field-rows" id="field-rows-container">${fieldRowsHtml}</div>
-      <button class="add-field-btn" id="add-field-row" type="button">+ Add field</button>
-    </div>`;
+    ${isEdit ? genericFieldRows : `<div id="typed-fields-wrapper">${typedFieldSections}</div>`}`;
 }
 
 export function renderConnectionsSubmitButton(isEdit: boolean): string {
@@ -138,6 +170,7 @@ export function renderConnectionsSubmitButton(isEdit: boolean): string {
 
 export const CONNECTIONS_FORM_SCRIPT = `
   (function() {
+    // ── Generic key/value rows (edit mode only) ──────────────────────────────
     const addBtn = document.getElementById('add-field-row');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
@@ -155,15 +188,39 @@ export const CONNECTIONS_FORM_SCRIPT = `
         btn.addEventListener('click', () => btn.closest('.field-row')?.remove());
       });
     }
+
+    // ── Type-specific field sections (new connection mode) ───────────────────
+    const typeSelect = document.getElementById('f-conn-type');
+    if (typeSelect && typeSelect.tagName === 'SELECT') {
+      const showSection = (type) => {
+        document.querySelectorAll('.type-fields').forEach(el => { el.style.display = 'none'; });
+        if (type) {
+          const section = document.getElementById('fields-' + type);
+          if (section) { section.style.display = ''; }
+        }
+      };
+      typeSelect.addEventListener('change', (e) => showSection(e.target.value));
+    }
+
+    // ── Submit ───────────────────────────────────────────────────────────────
     document.getElementById('f-submit-connection')?.addEventListener('click', () => {
-      const keys = Array.from(document.querySelectorAll('#field-rows-container .field-key')).map(el => el.value);
-      const vals = Array.from(document.querySelectorAll('#field-rows-container .field-val')).map(el => el.value);
+      const connType = document.getElementById('f-conn-type')?.value || '';
+      const typedSection = document.getElementById('fields-' + connType);
+      let fieldKeys, fieldValues;
+      if (typedSection) {
+        const inputs = Array.from(typedSection.querySelectorAll('.typed-field'));
+        fieldKeys   = inputs.map(el => el.dataset.key || '');
+        fieldValues = inputs.map(el => el.value || '');
+      } else {
+        fieldKeys   = Array.from(document.querySelectorAll('#field-rows-container .field-key')).map(el => el.value);
+        fieldValues = Array.from(document.querySelectorAll('#field-rows-container .field-val')).map(el => el.value);
+      }
       vscode.postMessage({ type: 'submitConnectionForm', formData: {
-        name:           document.getElementById('f-name')?.value       || '',
-        connectionType: document.getElementById('f-conn-type')?.value  || '',
+        name:           document.getElementById('f-name')?.value        || '',
+        connectionType: connType,
         description:    document.getElementById('f-description')?.value || '',
-        fieldKeys:  keys,
-        fieldValues: vals,
+        fieldKeys,
+        fieldValues,
       }});
     });
   })();`;

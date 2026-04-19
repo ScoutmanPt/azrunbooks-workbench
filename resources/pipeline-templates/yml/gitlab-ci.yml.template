@@ -1,0 +1,38 @@
+#
+# Azure OIDC (Workload Identity Federation) — one-time setup required:
+#
+#   1. In Azure Portal → App Registration / Service Principal → Certificates & secrets
+#      → Federated credentials → Add credential:
+#        Entity type : GitLab branch
+#        Issuer      : https://gitlab.com  (or your self-hosted GitLab URL)
+#        Subject     : project_path:<group>/<project>:ref_type:branch:ref:main
+#        Audience    : api://AzureADTokenExchange
+#
+#   2. In GitLab → Settings → CI/CD → Variables, add:
+#        AZURE_CLIENT_ID   — service principal / app client ID
+#        AZURE_TENANT_ID   — Azure AD tenant ID
+#        SUBSCRIPTION_ID   — Azure subscription ID
+#      (no secret or certificate needed)
+
+stages:
+  - deploy
+
+deploy_automation:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli:latest
+  id_tokens:
+    AZURE_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq powershell
+    - az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$AZURE_OIDC_TOKEN"
+    - az account set --subscription "$SUBSCRIPTION_ID"
+  rules:
+    - changes:
+{{PATH_FILTERS}}
+  variables:
+    AUTOMATION_ACCOUNT_NAME: "{{ACCOUNT_NAME}}"
+    RESOURCE_GROUP: "{{RESOURCE_GROUP}}"
+    SUBSCRIPTION_ID: "{{SUBSCRIPTION_ID}}"
+  script:
+{{DEPLOY_SCRIPT}}

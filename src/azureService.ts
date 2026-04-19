@@ -59,6 +59,7 @@ export interface JobScheduleLink {
   scheduleName: string;
   runbookName: string;
   runOn?: string;
+  parameters?: Record<string, string>;
 }
 
 export interface AutomationSchedule {
@@ -71,6 +72,11 @@ export interface AutomationSchedule {
   interval?: number;
   timeZone?: string;
   isEnabled: boolean;
+  advancedSchedule?: {
+    weekDays?: string[];
+    monthDays?: number[];
+    monthlyOccurrences?: Array<{ day: string; occurrence: number }>;
+  };
   creationTime?: string;
   lastModifiedTime?: string;
 }
@@ -695,6 +701,7 @@ export class AzureService {
       name?: string; description?: string; startTime?: Date; expiryTime?: Date;
       nextRun?: Date; frequency?: string; interval?: unknown; timeZone?: string;
       isEnabled?: boolean; creationTime?: Date; lastModifiedTime?: Date;
+      advancedSchedule?: { weekDays?: string[]; monthDays?: number[]; monthlyOccurrences?: Array<{ day?: string; occurrence?: number }> };
     }): AutomationSchedule => ({
       name: s.name ?? '',
       description: s.description,
@@ -705,6 +712,11 @@ export class AzureService {
       interval: typeof s.interval === 'number' ? s.interval : undefined,
       timeZone: s.timeZone,
       isEnabled: s.isEnabled ?? false,
+      advancedSchedule: s.advancedSchedule ? {
+        weekDays: s.advancedSchedule.weekDays,
+        monthDays: s.advancedSchedule.monthDays,
+        monthlyOccurrences: s.advancedSchedule.monthlyOccurrences?.map(o => ({ day: o.day ?? '', occurrence: o.occurrence ?? 0 })),
+      } : undefined,
       creationTime: s.creationTime?.toISOString(),
       lastModifiedTime: s.lastModifiedTime?.toISOString(),
     });
@@ -758,25 +770,18 @@ export class AzureService {
   ): Promise<JobScheduleLink[]> {
     const client = this.automationClient(subscriptionId);
     const results: JobScheduleLink[] = [];
+    const mapJobSchedule = (js: { jobScheduleId?: string; schedule?: { name?: string }; runbook?: { name?: string }; runOn?: string; parameters?: Record<string, string> }): JobScheduleLink => ({
+      jobScheduleId: js.jobScheduleId ?? '',
+      scheduleName: js.schedule?.name ?? '',
+      runbookName: js.runbook?.name ?? '',
+      runOn: js.runOn,
+      parameters: js.parameters && Object.keys(js.parameters).length > 0 ? js.parameters : undefined,
+    });
     let page = await client.jobSchedule.listByAutomationAccount(resourceGroupName, accountName);
-    for (const js of page) {
-      results.push({
-        jobScheduleId: js.jobScheduleId ?? '',
-        scheduleName: js.schedule?.name ?? '',
-        runbookName: js.runbook?.name ?? '',
-        runOn: js.runOn,
-      });
-    }
+    for (const js of page) { results.push(mapJobSchedule(js)); }
     while (page.nextLink) {
       page = await client.jobSchedule.listByAutomationAccountNext(page.nextLink);
-      for (const js of page) {
-        results.push({
-          jobScheduleId: js.jobScheduleId ?? '',
-          scheduleName: js.schedule?.name ?? '',
-          runbookName: js.runbook?.name ?? '',
-          runOn: js.runOn,
-        });
-      }
+      for (const js of page) { results.push(mapJobSchedule(js)); }
     }
     return results;
   }
@@ -1103,6 +1108,9 @@ export class AzureService {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
+      // 404 = feature not available on this account; 400 = unsupported API version in this cloud.
+      // Treat both as "no runtime environments" rather than a hard failure.
+      if (res.status === 404 || res.status === 400) { return []; }
       const body = await res.text().catch(() => '');
       throw new Error(`Runtime environments list failed: ${res.status} ${res.statusText}${body ? ` - ${body}` : ''}`);
     }
@@ -1596,13 +1604,14 @@ export class AzureService {
 
   async graphListServicePrincipalAppRoleAssignments(
     servicePrincipalId: string
-  ): Promise<Array<{ resourceId: string; appRoleId: string }>> {
-    const data = await this.graphFetch<{ value?: Array<{ resourceId?: string; appRoleId?: string }> }>(
-      `/servicePrincipals/${servicePrincipalId}/appRoleAssignments?$select=resourceId,appRoleId`
+  ): Promise<Array<{ id: string; resourceId: string; appRoleId: string }>> {
+    const data = await this.graphFetch<{ value?: Array<{ id?: string; resourceId?: string; appRoleId?: string }> }>(
+      `/servicePrincipals/${servicePrincipalId}/appRoleAssignments?$select=id,resourceId,appRoleId`
     );
     return (data.value ?? [])
-      .filter(assignment => assignment.resourceId && assignment.appRoleId)
+      .filter(assignment => assignment.id && assignment.resourceId && assignment.appRoleId)
       .map(assignment => ({
+        id: assignment.id ?? '',
         resourceId: assignment.resourceId ?? '',
         appRoleId: assignment.appRoleId ?? '',
       }));
@@ -1641,7 +1650,7 @@ export class AzureService {
 
   async graphDelete(path: string): Promise<void> {
     const endpoint = this.auth.getGraphEndpoint().replace(/\/$/, '');
-    const token = await this.auth.getAccessToken();
+    const token = await this.auth.getGraphToken();
     const res = await fetch(`${endpoint}/v1.0${path}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
@@ -1812,14 +1821,9 @@ async function streamToString(stream: NodeJS.ReadableStream): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-function createAutomationJobId(runbookName: string): string {
-  const base = runbookName
-    .replace(/[^a-zA-Z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 36) || 'runbook';
-  const suffix = Date.now().toString(36);
-  return `${base}-${suffix}`.slice(0, 63);
+function createAutomationJobId(_runbookName: string): string {
+  // Azure Automation Jobs API requires a valid UUID as the job name.
+  return crypto.randomUUID();
 }
 
 function normalizeRunbookTypeForRuntimeEnvironment(runbookType: string): string {
