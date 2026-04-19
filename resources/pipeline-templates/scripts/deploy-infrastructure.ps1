@@ -6,7 +6,7 @@
 .PARAMETER AccountName     Name of the Automation Account.
 .PARAMETER ResourceGroup   Resource group that will contain the account.
 .PARAMETER SubscriptionId  Azure subscription ID.
-.PARAMETER PipelineRoot    Root folder that contains automation-account.bicep.
+.PARAMETER PipelineRoot    Root folder that contains the biceps/ subfolder.
 .PARAMETER Location        Azure region (defaults to the resource group's location).
 .PARAMETER Sku             Pricing tier: Free or Basic (default: Basic).
 #>
@@ -19,7 +19,7 @@ param(
   [string] $Sku = 'Basic'
 )
 
-$template = Join-Path $PipelineRoot 'bicep' 'automation-account.bicep'
+$template = Join-Path $PipelineRoot 'biceps' 'automation-account.bicep'
 if (-not (Test-Path $template)) {
   throw "Bicep template not found: $template"
 }

@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Deploys Automation schedules and their runbook links via the Azure REST API.
-  Reads from <PipelineRoot>/schedules.<AccountName>.json.
+  Reads from <PipelineRoot>/jsons/schedules.<AccountName>.json.
 
   Schedule properties (startTime, expiryTime) are stored as UTC ISO-8601 strings.
   The script adjusts startTime to the nearest valid future occurrence so the API
@@ -10,7 +10,7 @@
 .PARAMETER AccountName     Name of the Automation Account.
 .PARAMETER ResourceGroup   Resource group containing the account.
 .PARAMETER SubscriptionId  Azure subscription ID.
-.PARAMETER PipelineRoot    Folder containing schedules.<AccountName>.json.
+.PARAMETER PipelineRoot    Folder that contains the jsons/ subfolder with schedules.<AccountName>.json.
 #>
 param(
   [Parameter(Mandatory)] [string] $AccountName,
@@ -19,7 +19,7 @@ param(
   [Parameter(Mandatory)] [string] $PipelineRoot
 )
 
-$manifest = Join-Path $PipelineRoot ("schedules.{0}.json" -f $AccountName)
+$manifest = Join-Path $PipelineRoot 'jsons' ("schedules.{0}.json" -f $AccountName)
 if (-not (Test-Path $manifest)) {
   Write-Host "No schedule manifest at $manifest — skipping."
   exit 0

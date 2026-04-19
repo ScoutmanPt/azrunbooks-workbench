@@ -2,7 +2,7 @@
   "name": "azure-runbook-workbench",
   "displayName": "Azure Runbooks Workbench",
   "description": "A modern Azure Automation Runbook developer experience - workspace-first, MSAL auth, local execution with asset mocking, and CI/CD generation.",
-  "version": "0.27.0",
+  "version": "0.50.0",
   "publisher": "ScoutmanPt",
   "icon": "resources/icon.png",
   "engines": {
@@ -94,11 +94,6 @@
         "title": "Refresh",
         "category": "Runbook Workbench",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "runbookWorkbench.initWorkspace",
-        "title": "Initialize Runbook Workspace",
-        "category": "Runbook Workbench"
       },
       {
         "command": "runbookWorkbench.fetchRunbook",
@@ -222,12 +217,6 @@
         "command": "runbookWorkbench.openLocalSettings",
         "title": "Open local.settings.json",
         "category": "Runbook Workbench"
-      },
-      {
-        "command": "runbookWorkbench.initAndFetchAllInSubscription",
-        "title": "Initialize All Accounts and Fetch All",
-        "category": "Runbook Workbench",
-        "icon": "$(cloud-download)"
       },
       {
         "command": "runbookWorkbench.createAutomationAccount",
@@ -392,79 +381,19 @@
           "group": "6_manage@1"
         },
         {
-          "command": "runbookWorkbench.initAndFetchAllInSubscription",
-          "when": "viewItem == subscription",
-          "group": "1_initialize@1"
-        },
-        {
           "command": "runbookWorkbench.createAutomationAccount",
           "when": "viewItem == subscription",
           "group": "2_manage@1"
         },
         {
-          "command": "runbookWorkbench.fetchAllRunbooks",
-          "when": "viewItem == automationAccount",
-          "group": "1_fetch@1"
-        },
-        {
-          "command": "runbookWorkbench.initWorkspace",
-          "when": "viewItem == automationAccount",
-          "group": "1_manage@2"
-        },
-        {
-          "command": "runbookWorkbench.createRunbook",
-          "when": "viewItem == automationAccount",
-          "group": "2_manage@1"
-        },
-        {
-          "command": "runbookWorkbench.viewJobs",
-          "when": "viewItem == automationAccount",
-          "group": "2_manage@2"
-        },
-        {
-          "command": "runbookWorkbench.viewSchedules",
-          "when": "viewItem == automationAccount",
-          "group": "2_manage@3"
-        },
-        {
-          "command": "runbookWorkbench.viewAssets",
-          "when": "viewItem == automationAccount",
-          "group": "2_manage@4"
-        },
-        {
-          "command": "runbookWorkbench.manageRuntimeEnvironments",
-          "when": "viewItem == automationAccount",
-          "group": "2_manage@5"
-        },
-        {
-          "command": "runbookWorkbench.generateCiCd",
-          "when": "viewItem == automationAccount",
-          "group": "3_secondary@1"
-        },
-        {
-          "command": "runbookWorkbench.generateDocumentation",
-          "when": "viewItem == automationAccount",
-          "group": "3b_docs@1"
-        },
-        {
-          "command": "runbookWorkbench.installModuleForLocalDebug",
-          "when": "viewItem == automationAccount",
-          "group": "3_secondary@3"
-        },
-        {
-          "command": "runbookWorkbench.viewAppPermissions",
-          "when": "viewItem == automationAccount",
-          "group": "3_secondary@3"
-        },
-        {
           "command": "runbookWorkbench.syncAccount",
           "when": "viewItem == automationAccount",
-          "group": "y_sync@0"
+          "group": "1_actions@0"
         },
         {
           "command": "runbookWorkbench.showInPortal",
           "when": "viewItem == automationAccount",
-          "group": "z_portal@0"
+          "group": "1_actions@1"
         },
         {
           "command": "runbookWorkbench.openWorkspaceRunbook",

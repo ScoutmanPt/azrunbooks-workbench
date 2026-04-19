@@ -1108,6 +1108,9 @@ export class AzureService {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
+      // 404 = feature not available on this account; 400 = unsupported API version in this cloud.
+      // Treat both as "no runtime environments" rather than a hard failure.
+      if (res.status === 404 || res.status === 400) { return []; }
       const body = await res.text().catch(() => '');
       throw new Error(`Runtime environments list failed: ${res.status} ${res.statusText}${body ? ` - ${body}` : ''}`);
     }

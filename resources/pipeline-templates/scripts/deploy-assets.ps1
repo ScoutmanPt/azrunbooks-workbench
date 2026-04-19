@@ -2,13 +2,13 @@
 .SYNOPSIS
   Deploys Automation assets (variables, credentials, connections, certificates)
   via the Azure REST API.  Values are read from local.settings.json.
-  Certificates are read from <PipelineRoot>/certificates.<AccountName>.json (optional).
+  Certificates are read from <PipelineRoot>/jsons/certificates.<AccountName>.json (optional).
 
 .PARAMETER AccountName        Name of the Automation Account.
 .PARAMETER ResourceGroup      Resource group containing the account.
 .PARAMETER SubscriptionId     Azure subscription ID.
 .PARAMETER LocalSettingsPath  Path to local.settings.json.
-.PARAMETER PipelineRoot       Folder that may contain certificates.<AccountName>.json (optional).
+.PARAMETER PipelineRoot       Folder whose jsons/ subfolder may contain certificates.<AccountName>.json (optional).
 #>
 param(
   [Parameter(Mandatory)] [string] $AccountName,
@@ -112,7 +112,7 @@ if ($accountSettings.Assets.Connections) {
 
 # ── Certificates ──────────────────────────────────────────────────────────────
 if ($PipelineRoot) {
-  $certsManifest = Join-Path $PipelineRoot ("certificates.{0}.json" -f $AccountName)
+  $certsManifest = Join-Path $PipelineRoot 'jsons' ("certificates.{0}.json" -f $AccountName)
   if (Test-Path $certsManifest) {
     $certData     = Get-Content $certsManifest -Raw | ConvertFrom-Json
     $certificates = @($certData.certificates)

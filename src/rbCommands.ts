@@ -1214,8 +1214,6 @@ const WORKSPACE_EXEMPT = new Set([
   'runbookWorkbench.selectCloud',
   'runbookWorkbench.refresh',
   'runbookWorkbench.refreshWorkspaceRunbooks',
-  'runbookWorkbench.initWorkspace',
-  'runbookWorkbench.initAndFetchAllInSubscription',
   'runbookWorkbench.createAutomationAccount',
   'runbookWorkbench.manageRuntimeEnvironments',
   'runbookWorkbench.changeRunbookRuntimeEnvironment',
@@ -1421,63 +1419,6 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
     reg('runbookWorkbench.refreshWorkspaceRunbooks', () => {
       workspaceRunbooksProvider.refresh();
       iconTheme.update();
-    }),
-
-    reg('runbookWorkbench.initWorkspace', async (item: unknown) => {
-      const account = item instanceof AutomationAccountItem ? item.account : undefined;
-      if (!account) {
-        void vscode.window.showErrorMessage('Select an Automation Account in the tree first.');
-        return;
-      }
-      if (!workspace.isWorkspaceOpen) {
-        void vscode.window.showErrorMessage('Open a folder in VS Code before initializing a workspace.');
-        return;
-      }
-      const before = workspace.getLinkedAccounts();
-      outputChannel.appendLine(`[init] Before: ${before.map(a => a.accountName).join(', ') || '(none)'}`);
-      await workspace.initWorkspace(account.name, account.resourceGroupName, account.subscriptionId, account.subscriptionName, account.location);
-      const after = workspace.getLinkedAccounts();
-      outputChannel.appendLine(`[init] After: ${after.map(a => a.accountName).join(', ')}`);
-      workspaceRunbooksProvider.refresh();
-      folderDecorations.refresh();
-      iconTheme.update();
-      void vscode.window.showInformationMessage(
-        `Workspace initialized for "${account.name}". Open local.settings.json to configure asset mocks.`
-      );
-      const doc = await vscode.workspace.openTextDocument(workspace.localSettingsPath);
-      await vscode.window.showTextDocument(doc);
-    }),
-
-    reg('runbookWorkbench.initAndFetchAllInSubscription', async (item: unknown) => {
-      if (!(item instanceof SubscriptionItem)) { return; }
-      if (!workspace.isWorkspaceOpen) {
-        void vscode.window.showErrorMessage('Open a folder in VS Code before initializing a workspace.');
-        return;
-      }
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `Setting up "${item.subscription.name}"…` },
-        async () => {
-          const accounts = await azure.listAutomationAccounts(item.subscription.id, item.subscription.name);
-          if (accounts.length === 0) {
-            void vscode.window.showInformationMessage('No Automation Accounts found in this subscription.');
-            return;
-          }
-          for (const account of accounts) {
-            outputChannel.appendLine(`[setup] Initializing ${account.name}…`);
-            await workspace.initWorkspace(account.name, account.resourceGroupName, account.subscriptionId, account.subscriptionName, account.location);
-          }
-          for (const account of accounts) {
-            outputChannel.appendLine(`[setup] Fetching all resources for ${account.name}…`);
-            await commands.fetchAllForAccount(account);
-          }
-          workspaceRunbooksProvider.refresh();
-          folderDecorations.refresh();
-          iconTheme.update();
-          void vscode.window.showInformationMessage(
-            `Setup complete: ${accounts.length} account(s) from "${item.subscription.name}" initialized and fetched.`
-          );
-        }
-      );
     }),
 
     reg('runbookWorkbench.createAutomationAccount', async (item: unknown) => {

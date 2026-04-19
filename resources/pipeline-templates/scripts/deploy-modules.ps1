@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
   Deploys PowerShell/Python modules to an Azure Automation Account via the REST API.
-  Reads the module list from <PipelineRoot>/modules.<AccountName>.json.
+  Reads the module list from <PipelineRoot>/jsons/modules.<AccountName>.json.
 
 .PARAMETER AccountName     Name of the Automation Account.
 .PARAMETER ResourceGroup   Resource group containing the account.
 .PARAMETER SubscriptionId  Azure subscription ID.
-.PARAMETER PipelineRoot    Folder that contains the modules manifest.
+.PARAMETER PipelineRoot    Folder that contains the jsons/ subfolder with the modules manifest.
 #>
 param(
   [Parameter(Mandatory)] [string] $AccountName,
@@ -15,7 +15,7 @@ param(
   [Parameter(Mandatory)] [string] $PipelineRoot
 )
 
-$modulesManifest = Join-Path $PipelineRoot ("modules.{0}.json" -f $AccountName)
+$modulesManifest = Join-Path $PipelineRoot 'jsons' ("modules.{0}.json" -f $AccountName)
 
 if (-not (Test-Path $modulesManifest)) {
   Write-Host "No module manifest at $modulesManifest — skipping."
