@@ -269,9 +269,21 @@
     "PnPPowerShellMock.psm1.template": "_file_template",
     "MicrosoftGraphMock.psm1.template": "_file_template",
     "automationstubs.py.template": "_file_template",
-    "Get-GraphSites.ps1": "_file_ps51_azure",
+    "Get-ExternalUsers.ps1": "_file_ps51_azure",
     "Get-GraphTenantSites.ps1": "_file_ps51_azure",
-    "Get-PnPSites.ps1": "_file_ps51_azure"
+    "Get-PnPSites.ps1": "_file_ps51_azure",
+    "replace_guest_names.py": "_file_py3",
+    "Clone-Teams.ps1": "_file_ps51_azure",
+    "Get-Sites.ps1": "_file_ps51_azure",
+    "test-rb.ps1": "_file_ps51_azure",
+    "Clone-Team.ps1": "_file_ps51_azure",
+    "Collect-AllReports.ps1": "_file_ps51_azure",
+    "Collect-SitesReport.ps1": "_file_ps51_azure",
+    "Collect-TeamsReport.ps1": "_file_ps51_azure",
+    "DrOctopus.ps1": "_file_ps51_azure",
+    "Get-ExchangeRates.ps1": "_file_ps51_azure",
+    "test-a.ps1": "_file_ps51_azure",
+    "Update-TeamsTemplates.ps1": "_file_ps51_azure"
   },
   "folder": "_folder_default",
   "folderExpanded": "_folder_default_open",
@@ -295,7 +307,9 @@
     "Schedules": "_folder_schedules",
     "Published": "_folder_published",
     "Draft": "_folder_draft",
-    "aa-etension": "_account_bright_blue"
+    "aa-etension": "_account_bright_blue",
+    "aa-demo": "_account_bright_blue",
+    "aa-m365cc": "_account_bright_blue"
   },
   "folderNamesExpanded": {
     ".vscode": "_folder_default_open",
@@ -317,6 +331,8 @@
     "Schedules": "_folder_schedules_open",
     "Published": "_folder_published_open",
     "Draft": "_folder_draft_open",
-    "aa-etension": "_account_bright_blue_open"
+    "aa-etension": "_account_bright_blue_open",
+    "aa-demo": "_account_bright_blue_open",
+    "aa-m365cc": "_account_bright_blue_open"
   }
 }

@@ -1072,7 +1072,11 @@ function renderInlineJobDetail(detail: AutomationJobDetail): string {
           ${renderStreams(outputStreams.length > 0 ? outputStreams : extraStreams, 'No output stream messages were captured for this job.')}
         </div>
         <div class="tab-panel" data-tab-panel="errors">
-          ${renderStreams(errorStreams, 'No error stream messages were captured.')}
+          ${errorStreams.length > 0
+            ? renderStreams(errorStreams, '')
+            : detail.exception?.trim()
+              ? `<div class="stream-list"><div class="stream-entry error"><div class="stream-meta"><span>Exception</span></div><div class="stream-body">${escapeHtml(detail.exception.trim())}</div></div></div>`
+              : renderStreams([], 'No error stream messages were captured.')}
         </div>
         <div class="tab-panel" data-tab-panel="warnings">
           ${renderStreams(warningStreams, 'No warning stream messages were captured.')}

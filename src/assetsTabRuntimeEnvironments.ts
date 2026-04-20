@@ -33,7 +33,7 @@ export function renderRuntimeEnvironmentsPane(state: TabState<RuntimeEnvironment
   const intro = `
     <div class="asset-note">
       Runtime Environments define the execution runtime and default packages used by newer Azure Automation runbooks.
-      Classic imported modules remain in the <strong>Classic Modules</strong> tab.
+      imported modules remain in the <strong>Modules</strong> tab.
     </div>`;
 
   const rows = state.items.length === 0

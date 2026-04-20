@@ -8,7 +8,7 @@
 
     -Phase install   → npm ci
     -Phase build     → version bump (optional) + esbuild bundle
-    -Phase publish   → vsce publish to the VS Code Marketplace
+    -Phase publish   → create releases/*.vsix and publish it to the VS Code Marketplace
 
 .PARAMETER Phase
   Which phase to run: install | build | publish
@@ -42,6 +42,26 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $root
 
+function New-VsixPackage {
+  param(
+    [Parameter(Mandatory)]
+    [pscustomobject] $PackageJson
+  )
+
+  $releasesDir = Join-Path $root 'releases'
+  $vsixName    = "$($PackageJson.name)-$($PackageJson.version).vsix"
+  $vsixPath    = Join-Path $releasesDir $vsixName
+
+  New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
+
+  Write-Host "── Package VSIX" -ForegroundColor Cyan
+  Write-Host "  Output: $vsixPath"
+  & npx vsce package --no-dependencies --out $vsixPath | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "vsce package failed" }
+
+  return (Resolve-Path $vsixPath).Path
+}
+
 switch ($Phase) {
 
   'install' {
@@ -72,11 +92,12 @@ switch ($Phase) {
 
     $pkg     = Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json
     $version = $pkg.version
+    $vsixPath = New-VsixPackage -PackageJson $pkg
     Write-Host "── Publish v$version to VS Code Marketplace" -ForegroundColor Cyan
 
-    npx vsce publish --no-dependencies --pat $PatToken
+    npx vsce publish --packagePath $vsixPath --pat $PatToken
     if ($LASTEXITCODE -ne 0) { throw "vsce publish failed" }
 
-    Write-Host "Published v$version successfully." -ForegroundColor Green
+    Write-Host "Published v$version successfully from $vsixPath" -ForegroundColor Green
   }
 }

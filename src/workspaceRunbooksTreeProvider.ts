@@ -39,7 +39,7 @@ const SECTION_META: Record<WorkspaceSection, { label: string; icon: string; colo
   runbooks:           { label: 'Runbooks',             icon: 'book' },
   recentJobs:         { label: 'Recent Jobs',          icon: 'history' },
   schedules:          { label: 'Schedules',            icon: 'clock' },
-  powershellModules:  { label: 'Classic Modules',      icon: 'terminal-powershell', color: 'charts.blue' },
+  powershellModules:  { label: 'Modules',      icon: 'terminal-powershell', color: 'charts.blue' },
   assets:             { label: 'Assets',               icon: 'symbol-variable' },
   pythonPackages:     { label: 'Python Packages',      icon: 'symbol-misc',         color: 'charts.yellow' },
   runtimeEnvironments:{ label: 'Execution Environments', icon: 'symbol-class',      color: 'charts.green' },

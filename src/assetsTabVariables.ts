@@ -1,6 +1,7 @@
 import type { AzureAutomationAccount, AzureService } from './azureService';
 import type { VariableItem, VariableFormData, TabState, VariableType } from './assetsShared';
 import { esc, csvEsc, errMsg, renderTabToolbar } from './assetsShared';
+import { serializeVariableValueForAzure, normalizeAutomationVariableValue } from './assetHelpers';
 
 const VARIABLE_TYPES: VariableType[] = ['String', 'Integer', 'Boolean', 'DateTime'];
 
@@ -24,7 +25,7 @@ export async function getVariableEditPrefill(
   name: string
 ): Promise<Record<string, unknown>> {
   const v = await azure.getVariable(account.subscriptionId, account.resourceGroupName, account.name, name);
-  return { name: v.name, value: v.value ?? '', type: v.type ?? 'String', isEncrypted: v.isEncrypted, description: v.description ?? '' };
+  return { name: v.name, value: normalizeAutomationVariableValue(v.value), type: v.type ?? 'String', isEncrypted: v.isEncrypted, description: v.description ?? '' };
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ export async function submitVariable(
 ): Promise<void> {
   await azure.createOrUpdateVariable(
     account.subscriptionId, account.resourceGroupName, account.name,
-    fd.name.trim(), fd.value, fd.isEncrypted, fd.description.trim() || undefined
+    fd.name.trim(), serializeVariableValueForAzure(fd.value, fd.type), fd.isEncrypted, fd.description.trim() || undefined
   );
 }
 

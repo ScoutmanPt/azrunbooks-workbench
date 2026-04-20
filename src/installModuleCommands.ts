@@ -205,19 +205,22 @@ export async function executeInstallModuleForLocalDebug(
     if (choice !== 'Install All') { return; }
   }
 
-  await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: `Saving ${moduleName} for local debug…` },
-    async () => {
-      await runner.installModuleWithDependencies(moduleName, resolvedVersion, deps);
-    }
-  );
-
   const total = deps.length + 1;
-  void vscode.window.showInformationMessage(
-    total > 1
-      ? `Saved "${moduleName}" and ${deps.length} dependenc${deps.length === 1 ? 'y' : 'ies'} to .settings/cache/modules.`
-      : `Saved "${moduleName}" to .settings/cache/modules.`
-  );
+  const label = total > 1 ? `"${moduleName}" and ${deps.length} dependenc${deps.length === 1 ? 'y' : 'ies'}` : `"${moduleName}"`;
+
+  void vscode.window.showInformationMessage(`Downloading ${label}…`);
+  try {
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Downloading ${label}…` },
+      async () => {
+        await runner.installModuleWithDependencies(moduleName, resolvedVersion, deps);
+      }
+    );
+    void vscode.window.showInformationMessage(`Downloaded ${label} — done.`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void vscode.window.showErrorMessage(`Failed to download ${label}: ${msg}`);
+  }
 }
 
 function inferPowerShellModuleName(item: unknown): string {

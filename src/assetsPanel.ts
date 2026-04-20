@@ -7,6 +7,10 @@ import type { LocalRunner } from './localRunner';
 import type { WorkspaceManager } from './workspaceManager';
 import { executeInstallModuleForLocalDebug } from './installModuleCommands';
 import { executeDeployModuleToAzure } from './deployModuleCommands';
+import {
+  CONNECTION_TYPE_KEY, CONNECTION_DESCRIPTION_KEY,
+  CERTIFICATE_BASE64_KEY, CERTIFICATE_EXPORTABLE_KEY, CERTIFICATE_DESCRIPTION_KEY,
+} from './assetHelpers';
 import { loadModules, renderModulesPane, MODULES_CSS, MODULES_SCRIPT } from './assetsTabModules';
 import {
   loadRuntimeEnvironments, renderRuntimeEnvironmentsPane,
@@ -207,25 +211,59 @@ export class AssetsPanel implements vscode.Disposable {
         const err = validateVariableForm(msg.formData);
         if (err) { throw new Error(err); }
         return submitVariable(this.azure, this.state.account, msg.formData);
-      }, msg.formData as unknown as Record<string, unknown>); break;
+      }, msg.formData as unknown as Record<string, unknown>, () => {
+        const fd = msg.formData;
+        const settings = this.workspace.readLocalSettings(this.state.account.name);
+        settings.Assets.Variables[fd.name.trim()] = fd.isEncrypted ? (settings.Assets.Variables[fd.name.trim()] ?? '') : fd.value;
+        this.workspace.writeLocalSettings(this.state.account.name, settings);
+      }); break;
 
       case 'submitCredentialForm':  await this.runSubmit('credentials',  () => {
         const err = validateCredentialForm(msg.formData, this.state.form.mode);
         if (err) { throw new Error(err); }
         return submitCredential(this.azure, this.state.account, msg.formData, this.state.form.mode);
-      }, msg.formData as unknown as Record<string, unknown>); break;
+      }, msg.formData as unknown as Record<string, unknown>, () => {
+        const fd = msg.formData;
+        const settings = this.workspace.readLocalSettings(this.state.account.name);
+        const existing = settings.Assets.Credentials[fd.name.trim()];
+        settings.Assets.Credentials[fd.name.trim()] = {
+          Username: fd.userName,
+          Password: existing?.Password || '',
+        };
+        this.workspace.writeLocalSettings(this.state.account.name, settings);
+      }); break;
 
       case 'submitConnectionForm':  await this.runSubmit('connections',  () => {
         const err = validateConnectionForm(msg.formData);
         if (err) { throw new Error(err); }
         return submitConnection(this.azure, this.state.account, msg.formData);
-      }, msg.formData as unknown as Record<string, unknown>); break;
+      }, msg.formData as unknown as Record<string, unknown>, () => {
+        const fd = msg.formData;
+        const settings = this.workspace.readLocalSettings(this.state.account.name);
+        const fieldMap: Record<string, string> = {};
+        fd.fieldKeys.forEach((k, i) => { if (k.trim()) { fieldMap[k.trim()] = fd.fieldValues[i] ?? ''; } });
+        settings.Assets.Connections[fd.name.trim()] = {
+          ...fieldMap,
+          [CONNECTION_TYPE_KEY]: fd.connectionType,
+          ...(fd.description.trim() ? { [CONNECTION_DESCRIPTION_KEY]: fd.description.trim() } : {}),
+        };
+        this.workspace.writeLocalSettings(this.state.account.name, settings);
+      }); break;
 
       case 'submitCertificateForm': await this.runSubmit('certificates', () => {
         const err = validateCertificateForm(msg.formData, this.state.form.mode);
         if (err) { throw new Error(err); }
         return submitCertificate(this.azure, this.state.account, msg.formData);
-      }, msg.formData as unknown as Record<string, unknown>); break;
+      }, msg.formData as unknown as Record<string, unknown>, () => {
+        const fd = msg.formData;
+        const settings = this.workspace.readLocalSettings(this.state.account.name);
+        settings.Assets.Certificates[fd.name.trim()] = {
+          [CERTIFICATE_BASE64_KEY]: fd.base64Value,
+          [CERTIFICATE_EXPORTABLE_KEY]: String(fd.isExportable),
+          ...(fd.description.trim() ? { [CERTIFICATE_DESCRIPTION_KEY]: fd.description.trim() } : {}),
+        };
+        this.workspace.writeLocalSettings(this.state.account.name, settings);
+      }); break;
 
       case 'submitRuntimeEnvironmentForm': await this.runSubmit('runtimeEnvironments', () => {
         const fd = msg.formData;
@@ -377,12 +415,13 @@ export class AssetsPanel implements vscode.Disposable {
 
   // ── Submit helper ─────────────────────────────────────────────────────────
 
-  private async runSubmit(tab: AssetTab, operation: () => Promise<void>, prefill?: Record<string, unknown>): Promise<void> {
+  private async runSubmit(tab: AssetTab, operation: () => Promise<void>, prefill?: Record<string, unknown>, afterSave?: () => void): Promise<void> {
     const { form, account } = this.state;
     this.state.form = { ...form, loading: true, error: undefined };
     this.render();
     try {
       await operation();
+      afterSave?.();
       this.outputChannel.appendLine(`[assets] Saved ${tab.slice(0, -1)} in ${account.name}`);
       this.state.form = { open: false, mode: 'new', tab, loading: false };
       await this.reloadTab(tab);
@@ -419,6 +458,14 @@ export class AssetsPanel implements vscode.Disposable {
         if (tab === 'runtimeEnvironments') {
           await this.azure.deleteRuntimeEnvironment(account.subscriptionId, account.resourceGroupName, account.name, name);
         }
+        if (tab === 'variables' || tab === 'credentials' || tab === 'connections' || tab === 'certificates') {
+          const settings = this.workspace.readLocalSettings(account.name);
+          if (tab === 'variables')    { delete settings.Assets.Variables[name]; }
+          if (tab === 'credentials')  { delete settings.Assets.Credentials[name]; }
+          if (tab === 'connections')  { delete settings.Assets.Connections[name]; }
+          if (tab === 'certificates') { delete settings.Assets.Certificates[name]; }
+          this.workspace.writeLocalSettings(account.name, settings);
+        }
         this.outputChannel.appendLine(`[assets] Deleted ${noun} "${name}" from ${account.name}`);
       } catch (e) {
         this.outputChannel.appendLine(`[assets] Failed to delete ${noun} "${name}": ${errMsg(e)}`);
@@ -433,7 +480,7 @@ export class AssetsPanel implements vscode.Disposable {
 
   private getExtensionVersion(): string {
     try {
-      const ext = vscode.extensions.getExtension('ScoutmanPt.azure-runbook-workbench');
+      const ext = vscode.extensions.getExtension('pdragon.azure-runbooks-workbench');
       if (ext?.packageJSON?.version) { return ext.packageJSON.version as string; }
     } catch {}
     return 'unknown';
@@ -576,7 +623,7 @@ function renderHtml(state: AssetsPanelState): string {
   const tabs: AssetTab[] = ['variables', 'credentials', 'connections', 'certificates', 'modules', 'runtimeEnvironments'];
   const tabLabels: Record<AssetTab, string> = {
     variables: 'Variables', credentials: 'Credentials',
-    connections: 'Connections', certificates: 'Certificates', modules: 'Classic Modules',
+    connections: 'Connections', certificates: 'Certificates', modules: 'Modules',
     runtimeEnvironments: 'Runtime Environments',
   };
 

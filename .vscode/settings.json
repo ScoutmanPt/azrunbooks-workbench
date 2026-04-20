@@ -7,5 +7,7 @@
       "args": ["-ic", "nvm use 20 >/dev/null 2>&1 || true; exec bash"]
     }
   },
-  "terminal.integrated.defaultProfile.linux": "bash (nvm use 20)"
+  "terminal.integrated.defaultProfile.linux": "bash (nvm use 20)",
+  "workbench.iconTheme": "runbook-workbench-icons",
+  "explorer.decorations.colors": false
 }

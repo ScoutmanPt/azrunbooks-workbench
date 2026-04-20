@@ -32,6 +32,8 @@ class VsCodeSessionCredential implements TokenCredential {
 export class AuthManager {
   private _session: vscode.AuthenticationSession | undefined;
   private _suppressSilentSignIn = false;
+  private _pnpAppId: string | undefined;
+  private _pnpGraphToken: { token: string; expiresAt: number } | undefined;
   private readonly _onDidSignInChange = new vscode.EventEmitter<boolean>();
   readonly onDidSignInChange = this._onDidSignInChange.event;
 
@@ -138,19 +140,120 @@ export class AuthManager {
    * fallback (az account get-access-token --resource graph) for tenants that
    * need Application.ReadWrite.All or Directory.Read.All.
    */
-  async getGraphToken(): Promise<string> {
-    const base = CLOUD_CONFIG[this.getCloudName()].graphEndpoint;
-    // Try Azure CLI first — it uses its own app registration and is more likely
-    // to have Graph permissions pre-consented for elevated operations.
+  setPnpAppId(id: string): void { this._pnpAppId = id || undefined; this._pnpGraphToken = undefined; }
+
+  async getGraphToken(pnpAppId?: string): Promise<string> {
+    pnpAppId ??= this._pnpAppId;
+    const cloud = this.getCloudName();
+    const base = CLOUD_CONFIG[cloud].graphEndpoint;
+
+    // VS Code is a Microsoft first-party app — AADSTS65002 prevents it from requesting
+    // explicit Graph scopes against another first-party resource. Only /.default works.
+
+    // 1. Try Azure CLI — most reliable path for elevated Graph permissions.
     const cliToken = this.getAzureCliAccessToken(base);
     if (cliToken) { return cliToken; }
-    // Fall back to VS Code auth with .default (pre-consented permissions only).
+
+    // 2. Device code flow using the user's PnP app registration — tried before /.default
+    //    because /.default on the VS Code app never has Application.Read.All.
+    if (pnpAppId) {
+      if (this._pnpGraphToken && this._pnpGraphToken.expiresAt > Date.now()) {
+        return this._pnpGraphToken.token;
+      }
+      const tenantId = this.getTenantIdFromSession();
+      if (tenantId) {
+        const scope = [
+          `${base}/Application.Read.All`,
+          `${base}/AppRoleAssignment.ReadWrite.All`,
+          `${base}/Directory.Read.All`,
+        ].join(' ');
+        const deviceToken = await this.getGraphTokenViaDeviceCode(pnpAppId, tenantId, scope);
+        if (deviceToken) { return deviceToken; }
+      }
+    }
+
+    // 3. Try VS Code auth with /.default (last resort — works only if admin pre-consented).
     const token = await this.acquireAccessToken([`${base}/.default`], false);
     if (token) { return token; }
+
     throw new Error(
-      'Unable to acquire a Microsoft Graph access token. ' +
-      'Run "az login" or ensure your account has the required Graph permissions.'
+      'Unable to acquire a Microsoft Graph access token with sufficient permissions. ' +
+      'Run "az login" in a terminal, configure a PnP App ID with Application.Read.All, or ask your admin to pre-consent.'
     );
+  }
+
+  private getTenantIdFromSession(): string | undefined {
+    // Try to extract from the current ARM session JWT (tid claim).
+    try {
+      const token = this._session?.accessToken;
+      if (token) {
+        const parts = token.split('.');
+        if (parts.length >= 2) {
+          const pad = parts[1].length % 4 === 0 ? '' : '='.repeat(4 - (parts[1].length % 4));
+          const decoded = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64').toString('utf8');
+          const tid = (JSON.parse(decoded) as Record<string, unknown>).tid as string | undefined;
+          if (tid) { return tid; }
+        }
+      }
+    } catch {}
+    // Fallback: ask the Azure CLI.
+    try {
+      const result = execFileSync('az', ['account', 'show', '--query', 'tenantId', '-o', 'tsv'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      return result || undefined;
+    } catch {}
+    return undefined;
+  }
+
+  private async getGraphTokenViaDeviceCode(clientId: string, tenantId: string, scope: string): Promise<string | undefined> {
+    const loginBase = CLOUD_CONFIG[this.getCloudName()].activeDirectoryEndpoint.replace(/\/$/, '');
+    try {
+      // Start device code flow
+      const dcRes = await fetch(`${loginBase}/${tenantId}/oauth2/v2.0/devicecode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: clientId, scope }).toString(),
+      });
+      if (!dcRes.ok) { return undefined; }
+      const dc = await dcRes.json() as {
+        device_code: string; user_code: string; verification_uri: string;
+        expires_in: number; interval: number;
+      };
+
+      // Show the code and open the browser
+      await vscode.env.clipboard.writeText(dc.user_code);
+      const choice = await vscode.window.showInformationMessage(
+        `Authorize Graph access: go to ${dc.verification_uri} and enter code  ${dc.user_code}  (copied to clipboard).`,
+        { modal: true },
+        'Open Browser'
+      );
+      if (choice === 'Open Browser') {
+        await vscode.env.openExternal(vscode.Uri.parse(dc.verification_uri));
+      }
+
+      // Poll until the user completes auth or the code expires
+      const deadline = Date.now() + dc.expires_in * 1000;
+      const interval = (dc.interval ?? 5) * 1000;
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, interval));
+        const tokenRes = await fetch(`${loginBase}/${tenantId}/oauth2/v2.0/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+            device_code: dc.device_code,
+          }).toString(),
+        });
+        const data = await tokenRes.json() as { access_token?: string; expires_in?: number; error?: string };
+        if (data.access_token) {
+          this._pnpGraphToken = { token: data.access_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000 };
+          return data.access_token;
+        }
+        if (data.error && data.error !== 'authorization_pending' && data.error !== 'slow_down') { break; }
+      }
+    } catch {}
+    return undefined;
   }
 
   /** Returns the raw Bearer token for direct REST calls. */

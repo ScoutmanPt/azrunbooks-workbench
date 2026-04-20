@@ -16,6 +16,11 @@ export function credentialSettingsFromAzure(userName?: string): LocalSettings['A
   };
 }
 
+export function serializeVariableValueForAzure(value: string, type: string): string {
+  if (type === 'String') { return JSON.stringify(value); }
+  return value;
+}
+
 export function normalizeAutomationVariableValue(value: string | undefined): string {
   if (value === undefined) { return ''; }
 

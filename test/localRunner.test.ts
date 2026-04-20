@@ -120,7 +120,6 @@ describe('LocalRunner', () => {
       state: 'Draft',
     });
 
-    assert.equal(_testState.config['debugging.createTemporaryIntegratedConsole'], true);
     assert.equal(_testState.debug.startCalls.length, 1);
     const [, config] = _testState.debug.startCalls[0] as [unknown, { type: string; request: string; script: string }];
     assert.equal(config.type, 'PowerShell');

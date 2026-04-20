@@ -49,6 +49,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   const workspaceProtection      = registerWorkspaceProtection(workspace);
 
+  // Seed AuthManager with the PnP app ID so Graph device-code flow can use it.
+  auth.setPnpAppId(workspace.getGlobalPnPAppId());
+
   // ── Tree views ───────────────────────────────────────────────────────────
   const accountsView = vscode.window.createTreeView('runbookWorkbench.accounts', {
     treeDataProvider: treeProvider,

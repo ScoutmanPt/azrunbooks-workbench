@@ -355,7 +355,7 @@ export class AzureService {
     // a SyntaxError. Call the REST endpoint directly instead.
     const endpoint = this.auth.getResourceManagerEndpoint().replace(/\/$/, '');
     const token = await this.auth.getAccessToken();
-    const url = `${endpoint}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Automation/automationAccounts/${accountName}/runbooks/${runbookName}/publish?api-version=2019-06-01`;
+    const url = `${endpoint}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Automation/automationAccounts/${accountName}/runbooks/${runbookName}/publish?api-version=2023-11-01`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -378,7 +378,7 @@ export class AzureService {
     // the PowerShell/Python script body as JSON response, causing a SyntaxError.
     const endpoint = this.auth.getResourceManagerEndpoint().replace(/\/$/, '');
     const token = await this.auth.getAccessToken();
-    const url = `${endpoint}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Automation/automationAccounts/${accountName}/runbooks/${runbookName}/draft/content?api-version=2019-06-01`;
+    const url = `${endpoint}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Automation/automationAccounts/${accountName}/runbooks/${runbookName}/draft/content?api-version=2023-11-01`;
     const res = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -1369,26 +1369,45 @@ export class AzureService {
       streams.push({
         jobStreamId: stream.jobStreamId,
         streamType: stream.streamType ?? 'Output',
-        summary: typeof stream.summary === 'string'
-          ? stream.summary
-          : typeof stream.streamText === 'string'
-            ? stream.streamText
-            : serializedValue ?? '',
+        summary: stream.summary?.trim() || stream.streamText?.trim() || serializedValue || '',
         streamText: stream.streamText,
         value: serializedValue,
         time: stream.time?.toISOString(),
       });
     };
 
+    // Collect all stream summaries first, then fetch full content for Error/Warning streams.
+    const summaryList: Array<{
+      jobStreamId?: string; streamType?: string; summary?: string;
+      streamText?: string; value?: Record<string, unknown>; time?: Date;
+    }> = [];
     let streamsPage = await client.jobStream.listByJob(resourceGroupName, accountName, jobId);
-    for (const stream of streamsPage) {
-      pushStream(stream);
-    }
+    for (const stream of streamsPage) { summaryList.push(stream); }
     while (streamsPage.nextLink) {
       streamsPage = await client.jobStream.listByJobNext(streamsPage.nextLink);
-      for (const stream of streamsPage) {
-        pushStream(stream);
-      }
+      for (const stream of streamsPage) { summaryList.push(stream); }
+    }
+
+    // Fetch full content for Error and Warning streams (usually few, avoids N+1 for verbose output).
+    const detailedIds = new Set(
+      summaryList
+        .filter(s => s.streamType === 'Error' || s.streamType === 'Warning')
+        .map(s => s.jobStreamId)
+        .filter((id): id is string => !!id)
+    );
+    const detailedMap = new Map<string, typeof summaryList[0]>();
+    await Promise.all(
+      Array.from(detailedIds).map(async id => {
+        try {
+          const full = await client.jobStream.get(resourceGroupName, accountName, jobId, id);
+          detailedMap.set(id, full);
+        } catch { /* fall back to summary */ }
+      })
+    );
+
+    for (const stream of summaryList) {
+      const full = stream.jobStreamId ? detailedMap.get(stream.jobStreamId) : undefined;
+      pushStream(full ?? stream);
     }
 
     streams.sort((left, right) => {
@@ -1808,6 +1827,43 @@ export class AzureService {
       }
     }
     throw new Error('Module import timed out after 6 minutes — check Azure Portal for status.');
+  }
+
+  async importPackageToRuntimeEnvironment(
+    subscriptionId: string,
+    resourceGroupName: string,
+    accountName: string,
+    runtimeEnvironmentName: string,
+    packageName: string,
+    contentUri: string
+  ): Promise<void> {
+    const endpoint = this.auth.getResourceManagerEndpoint().replace(/\/$/, '');
+    const token = await this.auth.getAccessToken();
+    const url = `${endpoint}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Automation/automationAccounts/${accountName}/runtimeEnvironments/${encodeURIComponent(runtimeEnvironmentName)}/packages/${encodeURIComponent(packageName)}?api-version=2024-10-23`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ properties: { contentLink: { uri: contentUri } } }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Package import failed: ${res.status} ${res.statusText}${body ? ` - ${body}` : ''}`);
+    }
+
+    // Poll until provisioning completes
+    const maxAttempts = 72;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      const pollRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!pollRes.ok) { continue; }
+      const data = await pollRes.json() as { properties?: { provisioningState?: string } };
+      const state = (data.properties?.provisioningState ?? '').toLowerCase();
+      if (state === 'succeeded') { return; }
+      if (state === 'failed' || state === 'canceled') {
+        throw new Error(`Package import ${state} in runtime environment "${runtimeEnvironmentName}".`);
+      }
+    }
+    throw new Error('Package import timed out after 6 minutes — check Azure Portal for status.');
   }
 }
 

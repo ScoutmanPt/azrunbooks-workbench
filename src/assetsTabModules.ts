@@ -95,7 +95,7 @@ export function renderModulesPane(state: TabState<ModuleItem>): string {
 
   return `
     <div class="pane-toolbar mod-toolbar">
-      <input class="search-box" id="search-modules" type="text" placeholder="Search classic modules…" />
+      <input class="search-box" id="search-modules" type="text" placeholder="Search modules…" />
       <button class="btn btn-primary" id="btn-install-gallery">&#8659; From Gallery</button>
       <button class="btn btn-secondary" id="btn-import-local">&#8625; Import Local</button>
     </div>

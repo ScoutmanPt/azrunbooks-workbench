@@ -38,6 +38,7 @@ import {
   credentialSettingsFromAzure,
   normalizeAutomationVariableValue,
   parseConnectionSettingsForAzure,
+  serializeVariableValueForAzure,
 } from './assetHelpers';
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
@@ -212,9 +213,11 @@ async function resolveOrCreateRunbookForDeployment(
   const linked = workspace.getLinkedAccount(ref.accountName);
   if (!linked || !linked.location) { return undefined; }
 
-  const runbookType = item instanceof WorkspaceRunbookItem
+  // Always default to PowerShell72 for new runbooks — upgrade legacy 5.1 type.
+  const rawRunbookType = item instanceof WorkspaceRunbookItem
     ? item.runbookType
     : runbookTypeForFilePath(ref.filePath);
+  const runbookType = rawRunbookType.toLowerCase() === 'powershell' ? 'PowerShell72' : rawRunbookType;
 
   const create = await vscode.window.showWarningMessage(
     `No Azure runbook named "${ref.runbookName}" was found in "${ref.accountName}". Create it now so we can ${actionLabel}?`,
@@ -610,7 +613,7 @@ async function createOrEditVariable(ctx: AssetPanelContext, variableName?: strin
     ctx.resourceGroup,
     ctx.accountName,
     name.trim(),
-    value,
+    serializeVariableValueForAzure(value, existing?.type ?? 'String'),
     encryption.value === 'encrypted',
     description || undefined
   );
@@ -1566,6 +1569,22 @@ export function registerRbCommands(deps: RbCommandDeps): vscode.Disposable[] {
           await syncAzureAssetsToLocalSettingsForAccount(azure, workspace, outputChannel, account);
         }
       );
+
+      const accountRunbooks = workspace.listWorkspaceRunbooks().filter(rb => rb.accountName === account.name);
+      const usesPnP = accountRunbooks.some(rb => {
+        try { return fs.readFileSync(rb.filePath, 'utf8').includes('Connect-PnPOnline'); }
+        catch { return false; }
+      });
+      if (usesPnP) {
+        const pnpModuleDir = path.join(workspace.localModulesDir, 'PnP.PowerShell');
+        if (!fs.existsSync(pnpModuleDir)) {
+          const choice = await vscode.window.showInformationMessage(
+            `Scripts in "${account.name}" use Connect-PnPOnline. Install PnP.PowerShell locally to debug them.`,
+            'Install PnP.PowerShell'
+          );
+          if (choice) { await executeInstallModuleForLocalDebug(undefined, runner, outputChannel); }
+        }
+      }
 
       treeProvider.refresh();
       workspaceRunbooksProvider.refresh();

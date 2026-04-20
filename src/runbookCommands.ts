@@ -74,13 +74,29 @@ function mapRuntimeEnvironmentToRunbookType(
 }
 
 function isRuntimeEnvironmentCompatibleWithRunbookType(
-  runtimeEnvironment: { language?: string },
+  runtimeEnvironment: { language?: string; version?: string },
   runbookType: string
 ): boolean {
   const language = (runtimeEnvironment.language ?? '').toLowerCase();
   const normalizedType = runbookType.toLowerCase();
-  if (normalizedType.startsWith('powershell')) { return language === 'powershell'; }
-  if (normalizedType.startsWith('python')) { return language === 'python'; }
+
+  if (normalizedType.startsWith('powershell')) {
+    if (language !== 'powershell') { return false; }
+    const parts = parseVersionParts(runtimeEnvironment.version ?? '');
+    const major = parts[0] ?? 0;
+    const minor = parts[1] ?? 0;
+    if (normalizedType === 'powershell72') { return major > 7 || (major === 7 && minor >= 2); }
+    if (normalizedType === 'powershell7') { return major === 7 && minor < 2; }
+    return major < 7; // classic PowerShell (5.x)
+  }
+
+  if (normalizedType.startsWith('python')) {
+    if (language !== 'python') { return false; }
+    const major = parseVersionParts(runtimeEnvironment.version ?? '')[0] ?? 0;
+    if (normalizedType === 'python3') { return major >= 3; }
+    if (normalizedType === 'python2') { return major < 3; }
+  }
+
   return false;
 }
 
@@ -115,6 +131,11 @@ async function getRunbookTypeChoices(
       .filter((choice): choice is RunbookTypeChoice => Boolean(choice));
 
     const deduped = new Map<string, RunbookTypeChoice>();
+    // Always ensure PowerShell 7.2 and 7.1 are available as options for new runbooks,
+    // even when the account only has older runtime environments configured.
+    for (const choice of fallback.filter(c => c.value === 'PowerShell72' || c.value === 'PowerShell7')) {
+      deduped.set(choice.value, choice);
+    }
     for (const choice of runtimeChoices) {
       if (!deduped.has(choice.value)) {
         deduped.set(choice.value, choice);
@@ -148,6 +169,68 @@ async function getRunbookTypeChoices(
   }
 }
 
+/**
+ * Like promptForRuntimeEnvironment but returns null when the user presses
+ * Escape (so callers can abort the operation), vs undefined when there are no
+ * compatible environments (so callers can proceed without changing anything).
+ */
+async function pickRuntimeEnvironmentForPublish(
+  azure: AzureService,
+  subscriptionId: string,
+  resourceGroup: string,
+  accountName: string,
+  runbookType: string,
+  outputChannel: vscode.OutputChannel,
+  currentEnv?: string
+): Promise<{ env: string | undefined } | null> {
+  try {
+    const runtimeEnvironments = await azure.listRuntimeEnvironments(subscriptionId, resourceGroup, accountName);
+    // Show all environments of the same language so the user can freely upgrade
+    // or change the runtime (e.g. move a PS 5.1 runbook to a PS 7.2 environment).
+    const language = runbookType.toLowerCase().startsWith('python') ? 'python' : 'powershell';
+    const compatible = runtimeEnvironments
+      .filter(item => (item.language ?? '').toLowerCase() === language)
+      .map<RuntimeEnvironmentChoice>(item => ({
+        label: item.name,
+        value: item.name,
+        description: [item.language, item.version].filter(Boolean).join(' '),
+        detail: item.defaultPackages && Object.keys(item.defaultPackages).length > 0
+          ? `Packages: ${Object.entries(item.defaultPackages).map(([name, version]) => `${name}@${version}`).join(', ')}`
+          : item.description,
+        language: item.language,
+      }));
+
+    if (compatible.length === 0) { return { env: currentEnv }; }
+
+    const noneChoice: RuntimeEnvironmentChoice = {
+      label: 'No linked Runtime Environment',
+      value: '',
+      description: 'Keep the classic runbook type only',
+    };
+    const preferred = compatible.find(item => item.value === currentEnv);
+    // When no current env is set, default to "None" first so the user doesn't
+    // accidentally link an incompatible or unintended runtime environment.
+    const ordered = preferred
+      ? [
+          { ...preferred, description: preferred.description ? `${preferred.description} · Current` : 'Current' },
+          ...compatible.filter(item => item.value !== preferred.value),
+          noneChoice,
+        ]
+      : [noneChoice, ...compatible];
+
+    const selected = await vscode.window.showQuickPick(ordered, {
+      title: 'Select Runtime Environment',
+      placeHolder: 'Select a runtime environment for this runbook',
+      ignoreFocusOut: true,
+    });
+    if (!selected) { return null; }  // user cancelled (Escape)
+    return { env: selected.value || undefined };
+  } catch (err) {
+    outputChannel.appendLine(`[runtime-environment-prompt-fallback] ${accountName}: ${errMessage(err)}`);
+    return { env: currentEnv };  // proceed unchanged on error
+  }
+}
+
 async function promptForRuntimeEnvironment(
   azure: AzureService,
   subscriptionId: string,
@@ -159,8 +242,9 @@ async function promptForRuntimeEnvironment(
 ): Promise<string | undefined> {
   try {
     const runtimeEnvironments = await azure.listRuntimeEnvironments(subscriptionId, resourceGroup, accountName);
+    const language = runbookType.toLowerCase().startsWith('python') ? 'python' : 'powershell';
     const compatible = runtimeEnvironments
-      .filter(item => isRuntimeEnvironmentCompatibleWithRunbookType(item, runbookType))
+      .filter(item => (item.language ?? '').toLowerCase() === language)
       .map<RuntimeEnvironmentChoice>(item => ({
         label: item.name,
         value: item.name,
@@ -190,7 +274,7 @@ async function promptForRuntimeEnvironment(
 
     const selected = await vscode.window.showQuickPick(ordered, {
       title: 'Select Runtime Environment',
-      placeHolder: `Compatible with ${runbookType}`,
+      placeHolder: `Select a runtime environment (${language === 'python' ? 'Python' : 'PowerShell'})`,
     });
     if (!selected) { return undefined; }
     return selected.value || undefined;
@@ -272,12 +356,61 @@ export class RunbookCommands {
     }
 
     if (!options?.skipConfirm) {
+      // Step 1: pick runtime environment
+      const envResult = await pickRuntimeEnvironmentForPublish(
+        this.azure,
+        runbook.subscriptionId,
+        runbook.resourceGroupName,
+        runbook.accountName,
+        runbook.runbookType,
+        this.outputChannel,
+        runbook.runtimeEnvironment
+      );
+      if (envResult === null) { return; }  // user cancelled (Escape)
+
+      // Step 2: summary confirmation with all publish details
+      const effectiveRunbookType = envResult.env
+        ? normalizeRunbookTypeForRuntimeEnvironment(runbook.runbookType)
+        : runbook.runbookType;
       const confirm = await vscode.window.showWarningMessage(
-        `Publish "${runbook.name}" to Azure? This will overwrite the published version.`,
-        { modal: true },
+        `Publish "${runbook.name}"?`,
+        {
+          modal: true,
+          detail: [
+            `Account:             ${runbook.accountName}`,
+            `Runbook type:        ${effectiveRunbookType}`,
+            `Runtime environment: ${envResult.env ?? 'None (classic)'}`,
+            ``,
+            `This will overwrite the published version in Azure.`,
+          ].join('\n'),
+        },
         'Publish'
       );
       if (confirm !== 'Publish') { return; }
+
+      // Step 3: apply runtime environment change if needed
+      if (envResult.env !== runbook.runtimeEnvironment) {
+        try {
+          await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: `Updating runtime environment for "${runbook.name}"…` },
+            () => this.azure.updateRunbookRuntimeEnvironment(
+              runbook.subscriptionId,
+              runbook.resourceGroupName,
+              runbook.accountName,
+              runbook.name,
+              runbook.runbookType,
+              envResult.env ?? ''
+            )
+          );
+          this.workspace.setRunbookMeta(runbook.accountName, runbook.name, runbook.runbookType, envResult.env);
+          this.outputChannel.appendLine(`[publish] ${runbook.name} runtime environment → ${envResult.env ?? 'none'}`);
+          runbook = { ...runbook, runtimeEnvironment: envResult.env };
+        } catch (err) {
+          this.outputChannel.appendLine(`[publish-runtime-error] ${runbook.name}: ${errMessage(err)}`);
+          void vscode.window.showErrorMessage(`Failed to update runtime environment for "${runbook.name}": ${errMessage(err)}`);
+          return;
+        }
+      }
     }
 
     await vscode.window.withProgress(
@@ -299,6 +432,23 @@ export class RunbookCommands {
             runbook.accountName,
             runbook.name
           );
+          // Step 3: re-apply runtime environment after publish — Azure may reset it
+          // during the draft upload/publish cycle, so we enforce it as a final PATCH.
+          if (runbook.runtimeEnvironment) {
+            try {
+              await this.azure.updateRunbookRuntimeEnvironment(
+                runbook.subscriptionId,
+                runbook.resourceGroupName,
+                runbook.accountName,
+                runbook.name,
+                runbook.runbookType,
+                runbook.runtimeEnvironment
+              );
+              this.outputChannel.appendLine(`[publish] ${runbook.name} runtime environment re-applied → ${runbook.runtimeEnvironment}`);
+            } catch (envErr) {
+              this.outputChannel.appendLine(`[publish-runtime-reapply-warning] ${runbook.name}: ${errMessage(envErr)}`);
+            }
+          }
           // Record deploy hash
           const hash = crypto.createHash('sha256').update(local).digest('hex');
           this.workspace.recordDeploy(runbook.accountName, runbook.name, hash);
@@ -556,7 +706,8 @@ export class RunbookCommands {
     const preferredDefault = typeChoices.find(choice => choice.value === 'PowerShell72')
       ?? typeChoices.find(choice => choice.value === 'PowerShell7')
       ?? typeChoices[0];
-    const detectedType = prefill?.runbookType
+    // Never let a legacy PowerShell 5.1 prefill override the default for a new runbook.
+    const detectedType = prefill?.runbookType && prefill.runbookType.toLowerCase() !== 'powershell'
       ? typeChoices.find(c => c.value.toLowerCase() === prefill.runbookType!.toLowerCase())
       : undefined;
     const selectedDefault = detectedType ?? preferredDefault;

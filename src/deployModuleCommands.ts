@@ -1,8 +1,8 @@
-import * as cp from 'child_process';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as zlib from 'zlib';
 import * as vscode from 'vscode';
 import type { AuthManager } from './authManager';
 import type { AzureService } from './azureService';
@@ -28,27 +28,47 @@ export async function executeDeployModuleToAzure(
   const account = await pickLinkedAccount(workspace);
   if (!account) { return; }
 
-  // 3. Pick staging method
-  const stagingMethod = await vscode.window.showQuickPick(
-    [
-      { label: '$(cloud) Use an existing storage account', value: 'existing' as const },
-      { label: '$(add) Create a new storage account', value: 'create' as const },
-      { label: '$(link) I will provide the URL directly', value: 'url' as const },
-    ],
-    {
-      title: 'Deploy Module to Azure Automation',
-      placeHolder: 'How should the module be staged for Azure to download?',
-      ignoreFocusOut: true,
-    }
-  );
+  // 3. Pick runtime environment (or classic PowerShell modules)
+  const runtimeEnv = await pickRuntimeEnvironment(azure, account.subscriptionId, account.resourceGroup, account.accountName, outputChannel);
+  if (runtimeEnv === undefined) { return; }   // user cancelled
+
+  // 4. Check if the module is available on PowerShell Gallery
+  let psGalleryUrl: string | undefined;
+  try {
+    psGalleryUrl = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Checking PowerShell Gallery for "${localModule.name}"…` },
+      () => checkPsGalleryModule(localModule.name, localModule.version, outputChannel)
+    );
+  } catch { /* best-effort */ }
+
+  // 5. Pick staging method
+  const stagingItems: Array<{ label: string; description?: string; value: 'psgallery' | 'existing' | 'create' | 'url' }> = [
+    ...(psGalleryUrl ? [{
+      label: '$(package) Use PowerShell Gallery (direct)',
+      description: `v${localModule.version} — no storage account needed`,
+      value: 'psgallery' as const,
+    }] : []),
+    { label: '$(cloud) Use an existing storage account', value: 'existing' as const },
+    { label: '$(add) Create a new storage account', value: 'create' as const },
+    { label: '$(link) I will provide the URL directly', value: 'url' as const },
+  ];
+  const stagingMethod = await vscode.window.showQuickPick(stagingItems, {
+    title: 'Deploy Module to Azure Automation',
+    placeHolder: 'How should the module be staged for Azure to download?',
+    ignoreFocusOut: true,
+  });
   if (!stagingMethod) { return; }
 
   outputChannel.appendLine(`\n[deploy-module] Deploying "${localModule.name}" (${localModule.version}) → "${account.accountName}"`);
+  void vscode.window.showInformationMessage(`Deploying "${localModule.name}" to "${account.accountName}"…`);
 
   let contentUri: string;
   let cleanupFn: (() => Promise<void>) | undefined;
 
-  if (stagingMethod.value === 'url') {
+  if (stagingMethod.value === 'psgallery') {
+    // ── Option 0: PowerShell Gallery direct URL ──────────────────────────────
+    contentUri = psGalleryUrl!;
+  } else if (stagingMethod.value === 'url') {
     // ── Option 3: user-provided URL ─────────────────────────────────────────
     const url = await vscode.window.showInputBox({
       title: 'Deploy Module to Azure Automation',
@@ -73,6 +93,20 @@ export async function executeDeployModuleToAzure(
       return;
     }
 
+    // Read zip into memory immediately so the temp dir can be cleaned up safely.
+    let zipBuffer: Buffer;
+    try {
+      zipBuffer = fs.readFileSync(zipPath!);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      outputChannel.appendLine(`[deploy-module] Failed to read zip at ${zipPath}: ${msg}`);
+      outputChannel.show(true);
+      void vscode.window.showErrorMessage(`Failed to read module zip: ${msg}`);
+      return;
+    } finally {
+      fs.rmSync(path.dirname(zipPath!), { recursive: true, force: true });
+    }
+
     try {
       // Get or create storage account
       let sa: { name: string; resourceGroup: string; blobEndpoint: string } | undefined;
@@ -95,7 +129,7 @@ export async function executeDeployModuleToAzure(
         { location: vscode.ProgressLocation.Notification, title: `Uploading module zip to storage…` },
         async () => {
           await ensureBlobContainer(sa!.blobEndpoint, sa!.name, key, STAGING_CONTAINER, outputChannel);
-          await uploadBlob(sa!.blobEndpoint, sa!.name, key, STAGING_CONTAINER, blobName, fs.readFileSync(zipPath!), outputChannel);
+          await uploadBlob(sa!.blobEndpoint, sa!.name, key, STAGING_CONTAINER, blobName, zipBuffer, outputChannel);
         }
       );
 
@@ -110,22 +144,33 @@ export async function executeDeployModuleToAzure(
           outputChannel.appendLine(`[deploy-module] Warning: could not clean up staging blob: ${err instanceof Error ? err.message : err}`);
         }
       };
-    } finally {
-      if (zipPath) { fs.rmSync(path.dirname(zipPath), { recursive: true, force: true }); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      outputChannel.appendLine(`[deploy-module] Staging failed: ${msg}`);
+      outputChannel.show(true);
+      void vscode.window.showErrorMessage(`Failed to stage module "${localModule.name}": ${msg}`);
+      return;
     }
   }
 
-  // 4. Import to Azure Automation (LRO — waits for completion)
+  // 5. Import to Azure Automation (LRO — waits for completion)
+  const importTitle = runtimeEnv
+    ? `Importing "${localModule.name}" into runtime environment "${runtimeEnv}"… (this may take a few minutes)`
+    : `Importing "${localModule.name}" into "${account.accountName}"… (this may take a few minutes)`;
   try {
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Importing "${localModule.name}" into "${account.accountName}"… (this may take a few minutes)` },
-      () => azure.importModuleToAutomation(account.subscriptionId, account.resourceGroup, account.accountName, localModule.name, contentUri)
+      { location: vscode.ProgressLocation.Notification, title: importTitle },
+      () => runtimeEnv
+        ? azure.importPackageToRuntimeEnvironment(account.subscriptionId, account.resourceGroup, account.accountName, runtimeEnv, localModule.name, contentUri)
+        : azure.importModuleToAutomation(account.subscriptionId, account.resourceGroup, account.accountName, localModule.name, contentUri)
     );
-    void vscode.window.showInformationMessage(`Module "${localModule.name}" successfully imported into "${account.accountName}".`);
-    outputChannel.appendLine(`[deploy-module] Import complete.`);
+    const dest = runtimeEnv ? `runtime environment "${runtimeEnv}"` : `"${account.accountName}"`;
+    void vscode.window.showInformationMessage(`Module "${localModule.name}" successfully imported into ${dest}.`);
+    outputChannel.appendLine(`[deploy-module] "${localModule.name}" (${localModule.version}) deployed to ${dest} — done.`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     outputChannel.appendLine(`[deploy-module] Import failed: ${msg}`);
+    outputChannel.show(true);
     void vscode.window.showErrorMessage(`Failed to import module "${localModule.name}" into Azure Automation: ${msg}`);
   } finally {
     await cleanupFn?.();
@@ -197,6 +242,78 @@ function latestVersion(moduleRoot: string): string | undefined {
     .map(e => e.name)
     .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
   return versions[0];
+}
+
+// ── PowerShell Gallery check ────────────────────────────────────────────────
+
+async function checkPsGalleryModule(name: string, version: string, outputChannel: vscode.OutputChannel): Promise<string | undefined> {
+  // Use the OData metadata endpoint — reliable GET that returns 200 or 404
+  // without triggering a CDN redirect chain (which HEAD does not follow reliably).
+  const metaUrl = `https://www.powershellgallery.com/api/v2/Packages(Id='${encodeURIComponent(name)}',Version='${encodeURIComponent(version)}')`;
+  const downloadUrl = `https://www.powershellgallery.com/api/v2/package/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(metaUrl, { method: 'GET', signal: controller.signal });
+    if (res.ok) {
+      outputChannel.appendLine(`[deploy-module] Found "${name}" v${version} on PowerShell Gallery`);
+      return downloadUrl;
+    }
+    outputChannel.appendLine(`[deploy-module] "${name}" v${version} not found on PowerShell Gallery (${res.status})`);
+    return undefined;
+  } catch (err) {
+    outputChannel.appendLine(`[deploy-module] PowerShell Gallery check failed: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Runtime environment selection ────────────────────────────────────────────
+
+/**
+ * Returns the selected runtime environment name, an empty string for classic
+ * PowerShell modules, or undefined if the user cancelled.
+ */
+async function pickRuntimeEnvironment(
+  azure: AzureService,
+  subscriptionId: string,
+  resourceGroup: string,
+  accountName: string,
+  outputChannel: vscode.OutputChannel
+): Promise<string | undefined> {
+  let envs: Array<{ name: string; language?: string; version?: string }>;
+  try {
+    envs = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Loading runtime environments…' },
+      () => azure.listRuntimeEnvironments(subscriptionId, resourceGroup, accountName)
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    outputChannel.appendLine(`[deploy-module] listRuntimeEnvironments failed: ${msg}`);
+    envs = [];
+  }
+
+  const items: Array<{ label: string; description?: string; value: string }> = [
+    {
+      label: '$(gear) Classic PowerShell Modules',
+      description: 'Global modules for the Automation Account (pre-runtime environments)',
+      value: '',
+    },
+    ...envs.map(e => ({
+      label: e.name,
+      description: [e.language, e.version].filter(Boolean).join(' '),
+      value: e.name,
+    })),
+  ];
+
+  const picked = await vscode.window.showQuickPick(items, {
+    title: 'Deploy Module to Azure Automation',
+    placeHolder: 'Select a runtime environment (or classic modules)',
+    ignoreFocusOut: true,
+  });
+
+  return picked?.value;
 }
 
 // ── Account selection ─────────────────────────────────────────────────────────
@@ -319,25 +436,111 @@ async function createAndPickStorageAccount(
 
 // ── Zip packaging ─────────────────────────────────────────────────────────────
 
+let _crc32Table: Uint32Array | undefined;
+function crc32(buf: Buffer): number {
+  if (!_crc32Table) {
+    _crc32Table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) { c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); }
+      _crc32Table[i] = c;
+    }
+  }
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) { crc = _crc32Table[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8); }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function buildZipBuffer(entries: Array<{ name: string; data: Buffer }>): Buffer {
+  const localHeaders: Buffer[] = [];
+  const centralDirs: Buffer[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBytes = Buffer.from(entry.name, 'utf8');
+    const crc = crc32(entry.data);
+    const uncompressedSize = entry.data.length;
+    const compressed = zlib.deflateRawSync(entry.data, { level: 6 });
+    const compressedSize = compressed.length;
+    const dosDate = 0x5421; // 2022-01-01 placeholder
+    const dosTime = 0x0000;
+
+    // Local file header
+    const local = Buffer.alloc(30 + nameBytes.length);
+    local.writeUInt32LE(0x04034b50, 0);   // signature
+    local.writeUInt16LE(20, 4);            // version needed
+    local.writeUInt16LE(0x0800, 6);        // flags: UTF-8
+    local.writeUInt16LE(8, 8);             // compression: deflate
+    local.writeUInt16LE(dosTime, 10);
+    local.writeUInt16LE(dosDate, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(compressedSize, 18);
+    local.writeUInt32LE(uncompressedSize, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    local.writeUInt16LE(0, 28);            // extra length
+    nameBytes.copy(local, 30);
+    localHeaders.push(local, compressed);
+
+    // Central directory entry
+    const central = Buffer.alloc(46 + nameBytes.length);
+    central.writeUInt32LE(0x02014b50, 0);  // signature
+    central.writeUInt16LE(20, 4);           // version made by
+    central.writeUInt16LE(20, 6);           // version needed
+    central.writeUInt16LE(0x0800, 8);       // flags: UTF-8
+    central.writeUInt16LE(8, 10);           // compression: deflate
+    central.writeUInt16LE(dosTime, 12);
+    central.writeUInt16LE(dosDate, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(compressedSize, 20);
+    central.writeUInt32LE(uncompressedSize, 24);
+    central.writeUInt16LE(nameBytes.length, 28);
+    central.writeUInt16LE(0, 30);           // extra length
+    central.writeUInt16LE(0, 32);           // comment length
+    central.writeUInt16LE(0, 34);           // disk start
+    central.writeUInt16LE(0, 36);           // internal attrs
+    central.writeUInt32LE(0, 38);           // external attrs
+    central.writeUInt32LE(offset, 42);      // local header offset
+    nameBytes.copy(central, 46);
+    centralDirs.push(central);
+
+    offset += 30 + nameBytes.length + compressedSize;
+  }
+
+  const centralOffset = offset;
+  const centralBuf = Buffer.concat(centralDirs);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);                        // disk number
+  eocd.writeUInt16LE(0, 6);                        // disk with central dir
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(centralBuf.length, 12);
+  eocd.writeUInt32LE(centralOffset, 16);
+  eocd.writeUInt16LE(0, 20);                       // comment length
+
+  return Buffer.concat([...localHeaders, centralBuf, eocd]);
+}
+
+function collectFiles(dir: string, base: string): Array<{ name: string; data: Buffer }> {
+  const results: Array<{ name: string; data: Buffer }> = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    const entryName = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      results.push(...collectFiles(fullPath, entryName));
+    } else if (entry.isFile()) {
+      results.push({ name: entryName, data: fs.readFileSync(fullPath) });
+    }
+  }
+  return results;
+}
+
 async function zipModuleFolder(sourceDir: string, moduleName: string): Promise<string> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arw-module-'));
   const zipPath = path.join(tmpDir, `${moduleName}.zip`);
-
-  await new Promise<void>((resolve, reject) => {
-    // pwsh is required by the extension for local run/debug — safe to rely on here
-    const psCmd = `Compress-Archive -Path '${sourceDir.replace(/'/g, "''")}${path.sep}*' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`;
-    const child = cp.spawn('pwsh', ['-NoLogo', '-NonInteractive', '-Command', psCmd], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stderr = '';
-    child.stderr?.on('data', (chunk: Buffer) => { stderr += String(chunk); });
-    child.on('error', reject);
-    child.on('close', code => {
-      if (code === 0) { resolve(); }
-      else { reject(new Error(stderr.trim() || `pwsh Compress-Archive exited with code ${code}`)); }
-    });
-  });
-
+  const entries = collectFiles(sourceDir, '');
+  const zipBuffer = buildZipBuffer(entries);
+  fs.writeFileSync(zipPath, zipBuffer);
   return zipPath;
 }
 
@@ -353,23 +556,13 @@ function sharedKeyHeader(
   sortedXmsHeaders: string[], // each "header-name:value" (no newline), already sorted
   canonicalizedResource: string
 ): string {
-  const canonHeaders = sortedXmsHeaders.map(h => `${h}\n`).join('');
-  const stringToSign = [
-    method,
-    '',               // Content-Encoding
-    '',               // Content-Language
-    String(contentLength),
-    '',               // Content-MD5
-    contentType,
-    '',               // Date (using x-ms-date)
-    '',               // If-Modified-Since
-    '',               // If-Match
-    '',               // If-None-Match
-    '',               // If-Unmodified-Since
-    '',               // Range
-    canonHeaders,
-    canonicalizedResource,
-  ].join('\n');
+  // Per Azure docs (API 2015-02-21+): Content-Length must be empty string when 0.
+  const contentLengthStr = contentLength === 0 || contentLength === '' ? '' : String(contentLength);
+  // canonHeaders must end with \n; each header on its own line joined with \n.
+  const canonHeaders = sortedXmsHeaders.join('\n') + '\n';
+  const stringToSign =
+    [method, '', '', contentLengthStr, '', contentType, '', '', '', '', '', ''].join('\n') +
+    '\n' + canonHeaders + canonicalizedResource;
 
   const sig = crypto
     .createHmac('sha256', Buffer.from(accountKey, 'base64'))

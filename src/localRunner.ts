@@ -186,6 +186,11 @@ export class LocalRunner {
       fs.mkdirSync(targetDir, { recursive: true });
       await unzipArchive(archivePath, targetDir);
       removeNuGetMetadata(targetDir);
+      this.outputChannel.appendLine(`[local-modules] Downloaded "${moduleName}" (${version}) — done.`);
+    } catch (err) {
+      this.outputChannel.appendLine(`[local-modules] Failed to download "${moduleName}" (${version}): ${err instanceof Error ? err.message : String(err)}`);
+      this.outputChannel.show(true);
+      throw err;
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -344,16 +349,33 @@ export class LocalRunner {
   }
 
   private async debugPowerShell(runbook: RunbookSummary, filePath: string): Promise<void> {
+    const scriptContent = fs.readFileSync(filePath, 'utf8');
+    if (scriptContent.includes('Connect-PnPOnline')) {
+      if (!this.workspace.getGlobalPnPAppId()) {
+        const appId = await vscode.window.showInputBox({
+          title: 'PnP App Registration ID',
+          prompt: 'This script uses Connect-PnPOnline. Enter the Azure AD App Registration (client) ID for PnP.PowerShell.',
+          placeHolder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          ignoreFocusOut: true,
+        });
+        if (appId?.trim()) {
+          this.workspace.setGlobalPnPAppId(appId.trim());
+        }
+      }
+      if (!isPnPPowerShellAvailable(this.workspace.localModulesDir)) {
+        void vscode.window.showWarningMessage(
+          'This script uses Connect-PnPOnline. Install PnP.PowerShell locally to run it.',
+          'Install PnP.PowerShell'
+        ).then(choice => {
+          if (choice) { void vscode.commands.executeCommand('runbookWorkbench.installModuleForLocalDebug'); }
+        });
+      }
+    }
+
     const settings = this.workspace.readLocalSettings(runbook.accountName);
     const tmpDir = this.createWorkspaceTempDir(runbook.accountName, 'runbook-debug-');
 
     try {
-      await vscode.workspace.getConfiguration('powershell').update(
-        'debugging.createTemporaryIntegratedConsole',
-        true,
-        vscode.ConfigurationTarget.Workspace
-      );
-
       const mockPath = this.writePowerShellMock(runbook.accountName, runbook.name, settings);
 
       const cachedImports = buildCachedModuleImports(this.workspace.localModulesDir);
@@ -791,6 +813,16 @@ function commandExists(cmd: string): Promise<boolean> {
 
 function sanitizeConsoleText(value: string): string {
   return value.replace(/\u001b\[[0-9;]*m/g, '');
+}
+
+function isPnPPowerShellAvailable(localModulesDir: string): boolean {
+  const localPnpDir = path.join(localModulesDir, 'PnP.PowerShell');
+  if (fs.existsSync(localPnpDir)) { return true; }
+  const psModulePath = process.env['PSModulePath'] ?? '';
+  return psModulePath.split(path.delimiter).some(dir => {
+    try { return fs.existsSync(path.join(dir, 'PnP.PowerShell')); }
+    catch { return false; }
+  });
 }
 
 function templateNeedsRefresh(filePath: string, content: string): boolean {

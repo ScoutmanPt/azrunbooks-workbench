@@ -607,8 +607,19 @@ export class WorkspaceManager {
   }
 
   readLocalSettings(accountName: string): LocalSettings {
-    return this.readLocalSettingsFile().aaccounts.find(s => s.accountName === accountName)
-      ?? defaultSettings(accountName);
+    const found = this.readLocalSettingsFile().aaccounts.find(s => s.accountName === accountName);
+    if (!found) { return defaultSettings(accountName); }
+    const def = defaultSettings(accountName);
+    return {
+      ...def,
+      ...found,
+      Assets: {
+        Variables:   { ...found.Assets?.Variables },
+        Credentials: { ...found.Assets?.Credentials },
+        Connections: { ...found.Assets?.Connections },
+        Certificates: { ...found.Assets?.Certificates },
+      },
+    };
   }
 
   writeLocalSettings(accountName: string, settings: LocalSettings): void {
@@ -962,7 +973,7 @@ export function extensionForRunbookType(runbookType: string): string {
 }
 
 export function runbookTypeForFilePath(filePath: string): string {
-  return path.extname(filePath).toLowerCase() === '.py' ? 'Python3' : 'PowerShell';
+  return path.extname(filePath).toLowerCase() === '.py' ? 'Python3' : 'PowerShell72';
 }
 
 function copyPathRecursive(source: string, target: string): void {

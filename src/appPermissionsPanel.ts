@@ -60,6 +60,8 @@ export class AppPermissionsPanel {
   // ── Initialisation ──────────────────────────────────────────────────────────
 
   private async _initState(account: AzureAutomationAccount): Promise<void> {
+    // Keep AuthManager in sync with the latest PnP app ID so device-code flow can use it.
+    this._auth.setPnpAppId(this._workspace.getGlobalPnPAppId());
     // Start with loading state — identity lookup in progress
     this._state = {
       account,
@@ -255,8 +257,12 @@ export class AppPermissionsPanel {
       // Try to surface a clientAppId if azureService appended one to the error text.
       const match = /clientAppId:\s*([A-Za-z0-9-_.]+)/i.exec(errText);
       const clientAppId = match ? match[1] : undefined;
+      const isVsCodeApp = clientAppId === 'aebc6443-996d-45c2-90f0-388ff96faa56';
       const clientPart = clientAppId ? `, clientAppId: ${clientAppId}` : '';
-      this._state = { ...this._state, searchLoading: false, searchError: `${errText} (search query: ${query}${clientPart})` };
+      const hint = isVsCodeApp
+        ? ' — The VS Code app lacks Application.Read.All. Run "az login" in your terminal so the Azure CLI token is used instead.'
+        : '';
+      this._state = { ...this._state, searchLoading: false, searchError: `${errText} (search query: ${query}${clientPart})${hint}` };
     }
     this._render();
   }

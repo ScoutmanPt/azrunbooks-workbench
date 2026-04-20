@@ -51,7 +51,7 @@ export type AccountSectionKind =
 const SECTION_META: Record<AccountSectionKind, { label: string; icon: string; color?: string }> = {
   assets:             { label: 'Assets',               icon: 'symbol-variable' },
   hybridWorkerGroups: { label: 'Hybrid Worker Groups', icon: 'server' },
-  powershellModules:  { label: 'Classic Modules',      icon: 'terminal-powershell', color: 'charts.blue' },
+  powershellModules:  { label: 'Modules',      icon: 'terminal-powershell', color: 'charts.blue' },
   pythonPackages:     { label: 'Python Packages',      icon: 'symbol-misc',         color: 'charts.yellow' },
   recentJobs:         { label: 'Recent Jobs',          icon: 'history' },
   runtimeEnvironments:{ label: 'Execution Environments', icon: 'symbol-class',      color: 'charts.green' },
